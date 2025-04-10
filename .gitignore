@@ -1,0 +1,18 @@
+.env
+agent/.env
+contract/target/
+contract/node_modules/
+contract/out/
+contract/build/
+contract/dist/
+
+# Python-generated files
+agent/__pycache__/
+agent/*.py[oc]
+agent/build/
+agent/dist/
+agent/wheels/
+agent/*.egg-info
+
+# Virtual environments
+agent/.venv
