@@ -1,7 +1,10 @@
 [project]
-name = "agent"
+name = "shade-agent-client"
 version = "0.1.0"
-description = "Add your description here"
+description = "A Shade Agent for NEAR"
 readme = "README.md"
-requires-python = ">=3.9"
-dependencies = []
+requires-python = ">=3.11"
+dependencies = [
+    "dstack-sdk>=0.1.8",
+    "near-omni-client>=0.0.1",
+]
