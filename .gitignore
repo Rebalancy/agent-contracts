@@ -16,3 +16,6 @@ agent/*.egg-info
 
 # Virtual environments
 agent/.venv
+
+# Local dev
+TODO*
