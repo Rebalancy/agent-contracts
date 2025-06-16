@@ -9,12 +9,14 @@ use omni_transaction::evm::types::Signature;
 use omni_transaction::evm::EVMTransaction;
 use omni_transaction::signer::types::{mpc_contract, SignRequest, SignatureResponse};
 
+use alloy_primitives::utils::parse_units;
 use constants::*;
 use external::this_contract;
 use types::Worker;
 
 mod collateral;
 mod constants;
+mod encoders;
 mod external;
 mod types;
 
@@ -26,11 +28,53 @@ pub struct Contract {
     worker_by_account_id: IterableMap<AccountId, Worker>,
 }
 
+// Invest
+// - 3 payloads
+// - 1 para withdraw
+// - 1 para bridge
+// - 1 para deposit
+// Harvest
+// - 1 payload
+// - 1 para harvest
+// Rebalance
+// - 3 payloads
+// - 1 para withdraw de aave
+// - 1 para bridge
+// - 1 para deposit en aave
+
 #[near]
 impl Contract {
     #[init]
     #[private]
     pub fn init(owner_id: AccountId) -> Self {
+        let parsed = parse_units("1.5", 18).unwrap();
+
+        let amount = match parsed {
+            alloy_primitives::utils::ParseUnits::U256(val) => val,
+            _ => panic!("Expected U256 from parse_units"),
+        };
+
+        let aave_withdraw = encoders::aave::lending_pool::encode_withdraw(
+            constants::AAVE_LENDING_POOL_ADDRESS.parse().unwrap(),
+            amount,
+            constants::AAVE_LENDING_POOL_ADDRESS.parse().unwrap(),
+        );
+        let aave_deposit = encoders::aave::lending_pool::encode_supply(
+            constants::AAVE_LENDING_POOL_ADDRESS.parse().unwrap(),
+            amount,
+            constants::AAVE_LENDING_POOL_ADDRESS.parse().unwrap(),
+            0, // Referral code, can be set later
+        );
+        env::log_str(&format!(
+            "Aave withdraw calldata: 0x{}",
+            hex::encode(aave_withdraw)
+        ));
+
+        env::log_str(&format!(
+            "Aave deposit calldata: 0x{}",
+            hex::encode(aave_deposit)
+        ));
+
         Self {
             owner_id,
             approved_codehashes: IterableSet::new(b"a"),
@@ -38,6 +82,24 @@ impl Contract {
         }
     }
 
+    // DeFi functions
+    // pub fn invest(&mut self) -> Promise {
+    //     // validate that the caller is the shade agent
+
+    //     // withdraw
+    //     // bridge
+    //     // deposit to AAVE
+    // }
+
+    // #[private]
+    // pub fn invest_callback(
+    //     &mut self,
+    //     #[callback_result] call_result: Result<SignatureResponse, PromiseError>,
+    //     ethereum_tx: EVMTransaction,
+    // ) -> String {
+    // }
+
+    // Agent functions
     pub fn register_worker(
         &mut self,
         quote_hex: String,
