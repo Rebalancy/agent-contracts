@@ -16,21 +16,29 @@ container_build_command = ["cargo", "near", "build"]
 
 [dependencies]
 near-sdk = { version = "5.7.0", features = ["schemars"]}
-dcap-qvl = { git = "https://github.com/mattlockyer/dcap-qvl", branch = "master"}
-hex = "0.4.3"
+dcap-qvl = { git = "https://github.com/mattlockyer/dcap-qvl", branch="master"}
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
 serde_json = "1.0.140"
 sha2 = "0.10.8"
 omni-transaction = "0.2.1"
 alloy-sol-types = { version = "1.2.0", default-features = false }
 alloy-primitives = { version = "1.2.0", default-features = false }
+borsh = { version = "1.0.0", features = ["derive"] }
+schemars = { version = "0.8" }
 
 [dev-dependencies]
 near-sdk = { version = "5.7.0", features = ["unit-testing"] }
 tokio = "1.44.1"
 serde_json = "1.0.140"
 anyhow = "1.0.98"
-near-workspaces = { version = "0.18.0", features = ["unstable"] }
 near-gas = "0.3.0"
+omni-box = "0.1.8"
+near-primitives = "0.25.0"
+alloy = { version = "0.6.2", features = ["full", "node-bindings", "rlp"] }
+near-workspaces = { version = "0.14.1", features = [
+    "experimental",
+    "unstable",
+] }
 
 [dependencies.near-account-id]
 version = "1.1.1"
