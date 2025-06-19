@@ -36,6 +36,10 @@ alloy = { version = "0.6.2", features = ["full", "node-bindings", "rlp"] }
 near-workspaces = { version = "0.20.1", features = [
     "unstable",
 ] }
+near-primitives = { version= "0.30.1"}
+near-crypto = { version = "0.30.1" }
+near-jsonrpc-client = { version = "0.17.0" }
+near-jsonrpc-primitives = "0.30.1"
 
 [dependencies.near-account-id]
 version = "1.1.1"
