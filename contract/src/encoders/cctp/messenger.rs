@@ -44,7 +44,9 @@ mod tests {
         let amount = U256::from(1_000_000u64);
         let destination_domain = 0u32;
         let mint_recipient = B256::ZERO;
-        let burn_token = "0x".parse().unwrap();
+        let burn_token = "0x7d2768de84f9a91b2c744cf0f0865d2e4b30f4bf"
+            .parse()
+            .unwrap();
         let destination_caller = B256::ZERO;
         let max_fee = U256::from(10_000u64);
         let min_finality_threshold = 1u32;
