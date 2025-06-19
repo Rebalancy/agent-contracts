@@ -1,103 +1,322 @@
+use std::str::FromStr;
+
+use borsh::{BorshDeserialize, BorshSerialize};
 use dcap_qvl::verify;
 use hex::{decode, encode};
 use near_sdk::{
     env, near, require,
+    serde::{Deserialize, Serialize},
     store::{IterableMap, IterableSet},
     AccountId, NearToken, PanicOnDefault, Promise, PromiseError,
 };
 use omni_transaction::evm::types::Signature;
 use omni_transaction::evm::EVMTransaction;
-use omni_transaction::signer::types::{mpc_contract, SignRequest, SignatureResponse};
+use omni_transaction::signer::types::SignatureResponse;
 
-use alloy_primitives::utils::parse_units;
+use alloy_primitives::{Address, B256, U256};
 use constants::*;
 use external::this_contract;
+use schemars::JsonSchema;
 use types::Worker;
 
 mod collateral;
 mod constants;
+mod ecdsa;
 mod encoders;
 mod external;
 mod types;
+
+pub type ChainId = u64;
+
+// Config Structs
+#[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(crate = "near_sdk::serde")]
+pub struct AaveConfig {
+    pub asset: String,
+    pub on_behalf_of: String,
+    pub referral_code: u16,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(crate = "near_sdk::serde")]
+pub struct CCTPConfig {}
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(crate = "near_sdk::serde")]
+pub struct RebalancerConfig {}
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(crate = "near_sdk::serde")]
+pub struct Config {
+    aave: AaveConfig,
+    cctp: CCTPConfig,
+    rebalancer: RebalancerConfig,
+}
+
+#[repr(u8)]
+pub enum PayloadType {
+    AaveSupply = 0,
+    AaveWithdraw = 1,
+    CCTPBurn = 2,
+    CCTPMint = 3,
+    RebalancerInvest = 4,
+    RebalancerRebalance = 5,
+}
+
+// Activity Structs
+#[derive(BorshDeserialize, BorshSerialize, Clone)]
+pub struct ActivityLog {
+    pub activity_type: String,
+    pub source_chain: ChainId,
+    pub destination_chain: ChainId,
+    pub transactions: Vec<Vec<u8>>,
+    pub timestamp: u64,
+    pub nonce: u64,
+}
+
+// Args Structs
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(crate = "near_sdk::serde")]
+pub struct AaveArgs {
+    pub amount: u128,
+    pub partial_transaction: EVMTransaction,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(crate = "near_sdk::serde")]
+pub struct CCTPArgs {
+    pub amount: u128,
+    pub destination_domain: u32,
+    pub mint_recipient: String,
+    pub burn_token: String,
+    pub destination_caller: String,
+    pub max_fee: u128,
+    pub min_finality_threshold: u32,
+    pub message: Vec<u8>,
+    pub attestation: Vec<u8>,
+    pub partial_burn_transaction: EVMTransaction,
+    pub partial_mint_transaction: EVMTransaction,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(crate = "near_sdk::serde")]
+pub struct RebalancerArgs {
+    pub amount: u128,
+    pub source_chain: ChainId,
+    pub destination_chain: ChainId,
+    pub partial_transaction: EVMTransaction,
+}
 
 #[near(contract_state)]
 #[derive(PanicOnDefault)]
 pub struct Contract {
     owner_id: AccountId,
+    source_chain: ChainId,
     approved_codehashes: IterableSet<String>,
     worker_by_account_id: IterableMap<AccountId, Worker>,
+    pub config: IterableMap<ChainId, Config>,
+    pub logs: IterableMap<u64, ActivityLog>,
+    pub logs_nonce: u64,
 }
-
-// Invest
-// - 3 payloads
-// - 1 para withdraw
-// - 1 para bridge
-// - 1 para deposit
-// Harvest
-// - 1 payload
-// - 1 para harvest
-// Rebalance
-// - 3 payloads
-// - 1 para withdraw de aave
-// - 1 para bridge
-// - 1 para deposit en aave
 
 #[near]
 impl Contract {
     #[init]
     #[private]
-    pub fn init(owner_id: AccountId) -> Self {
-        let parsed = parse_units("1.5", 18).unwrap();
-
-        let amount = match parsed {
-            alloy_primitives::utils::ParseUnits::U256(val) => val,
-            _ => panic!("Expected U256 from parse_units"),
-        };
-
-        let aave_withdraw = encoders::aave::lending_pool::encode_withdraw(
-            constants::AAVE_LENDING_POOL_ADDRESS.parse().unwrap(),
-            amount,
-            constants::AAVE_LENDING_POOL_ADDRESS.parse().unwrap(),
-        );
-        let aave_deposit = encoders::aave::lending_pool::encode_supply(
-            constants::AAVE_LENDING_POOL_ADDRESS.parse().unwrap(),
-            amount,
-            constants::AAVE_LENDING_POOL_ADDRESS.parse().unwrap(),
-            0, // Referral code, can be set later
-        );
-        env::log_str(&format!(
-            "Aave withdraw calldata: 0x{}",
-            hex::encode(aave_withdraw)
-        ));
-
-        env::log_str(&format!(
-            "Aave deposit calldata: 0x{}",
-            hex::encode(aave_deposit)
-        ));
-
-        Self {
+    pub fn init(
+        owner_id: AccountId,
+        source_chain: ChainId,
+        configs: Vec<(ChainId, Config)>,
+    ) -> Self {
+        let mut contract = Self {
             owner_id,
             approved_codehashes: IterableSet::new(b"a"),
             worker_by_account_id: IterableMap::new(b"b"),
+            config: IterableMap::new(b"c"),
+            source_chain,
+            logs: IterableMap::new(b"d"),
+            logs_nonce: 0,
+        };
+        for (chain_id, cfg) in configs {
+            contract.config.insert(chain_id, cfg);
         }
+        contract
     }
 
     // DeFi functions
-    // pub fn invest(&mut self) -> Promise {
-    //     // validate that the caller is the shade agent
 
-    //     // withdraw
-    //     // bridge
-    //     // deposit to AAVE
-    // }
+    /// Invest is an action that means:
+    /// 1. Withdraw from the source chain vault
+    /// 2. Bridge the withdrawn amount to the destination chain
+    /// 3. Supply the bridged amount into Aave on the destination chain
+    pub fn invest(
+        &mut self,
+        destination_chain: ChainId,
+        aave_args: AaveArgs,
+        cctp_args: CCTPArgs,
+        rebalancer_args: RebalancerArgs,
+    ) -> Promise {
+        // TODO: validate that the caller is the shade agent
 
-    // #[private]
-    // pub fn invest_callback(
-    //     &mut self,
-    //     #[callback_result] call_result: Result<SignatureResponse, PromiseError>,
-    //     ethereum_tx: EVMTransaction,
-    // ) -> String {
-    // }
+        // let source_chain_config = self
+        //     .config
+        //     .get(&self.source_chain)
+        //     .expect("Chain not configured");
+
+        // 1. Encode Vault Payload
+        let invest_data = encoders::rebalancer::vault::encode_invest(rebalancer_args.amount);
+
+        // Create invest transaction
+        let mut invest_tx = rebalancer_args.partial_transaction;
+        invest_tx.input = invest_data;
+
+        let destination_chain_config = self
+            .config
+            .get(&destination_chain)
+            .expect("Chain not configured");
+
+        // 2.1 Encode Bridge Payload (Burn)
+        let burn_usdc_data = encoders::cctp::messenger::encode_deposit_for_burn(
+            U256::from(cctp_args.amount),
+            cctp_args.destination_domain,
+            B256::from_str(&cctp_args.mint_recipient).unwrap(),
+            Address::from_str(&cctp_args.burn_token).unwrap(),
+            B256::from_str(&cctp_args.destination_caller).unwrap(),
+            U256::from(cctp_args.max_fee),
+            cctp_args.min_finality_threshold,
+        );
+
+        // Create burn transaction
+        let mut burn_tx = cctp_args.partial_burn_transaction;
+        burn_tx.input = burn_usdc_data;
+        let mut payloads = vec![burn_tx.build_for_signing()];
+
+        // 2.2 Encode Bridge Payload (Mint)
+        let mint_usdc_data = encoders::cctp::transmitter::encode_receive_message(
+            cctp_args.message,
+            cctp_args.attestation,
+        );
+
+        // Create mint transaction
+        let mut mint_tx = cctp_args.partial_mint_transaction;
+        mint_tx.input = mint_usdc_data;
+        payloads.push(mint_tx.build_for_signing());
+
+        // 3. Encode Aave Supply Payload
+        let aave_data = encoders::aave::lending_pool::encode_supply(
+            Address::from_str(&destination_chain_config.aave.asset).unwrap(),
+            U256::from(aave_args.amount),
+            Address::from_str(&destination_chain_config.aave.on_behalf_of).unwrap(),
+            destination_chain_config.aave.referral_code,
+        );
+
+        //  Create Aave supply transaction
+        let mut aave_tx = aave_args.partial_transaction;
+        aave_tx.input = aave_data;
+        payloads.push(aave_tx.build_for_signing());
+
+        let nonce = self.logs_nonce;
+        self.logs_nonce += 1;
+
+        // 4. Log activity with nonce
+        self.logs.insert(
+            nonce,
+            ActivityLog {
+                activity_type: "invest".to_string(),
+                source_chain: self.source_chain,
+                destination_chain,
+                transactions: vec![],
+                timestamp: env::block_timestamp_ms(),
+                nonce,
+            },
+        );
+
+        // 5. Manually create the promises for each payload
+        let prom_rebalancer = ecdsa::get_sig(
+            invest_tx.build_for_signing().try_into().unwrap(),
+            "path_0".to_string(),
+            KEY_VERSION,
+        )
+        .then(
+            this_contract::ext(env::current_account_id())
+                .with_static_gas(CALLBACK_GAS)
+                .sign_callback(nonce, PayloadType::RebalancerInvest as u8, invest_tx),
+        );
+
+        let prom_burn = ecdsa::get_sig(
+            burn_tx.build_for_signing().try_into().unwrap(),
+            "path_1".to_string(),
+            KEY_VERSION,
+        )
+        .then(
+            this_contract::ext(env::current_account_id())
+                .with_static_gas(CALLBACK_GAS)
+                .sign_callback(nonce, PayloadType::CCTPBurn as u8, burn_tx),
+        );
+
+        let prom_mint = ecdsa::get_sig(
+            mint_tx.build_for_signing().try_into().unwrap(),
+            "path_2".to_string(),
+            KEY_VERSION,
+        )
+        .then(
+            this_contract::ext(env::current_account_id())
+                .with_static_gas(CALLBACK_GAS)
+                .sign_callback(nonce, PayloadType::CCTPMint as u8, mint_tx),
+        );
+
+        let prom_aave = ecdsa::get_sig(
+            aave_tx.build_for_signing().try_into().unwrap(),
+            "path_3".to_string(),
+            KEY_VERSION,
+        )
+        .then(
+            this_contract::ext(env::current_account_id())
+                .with_static_gas(CALLBACK_GAS)
+                .sign_callback(nonce, PayloadType::AaveSupply as u8, aave_tx),
+        );
+
+        // 6. Return the promises to be executed
+        prom_rebalancer
+            .and(prom_burn)
+            .and(prom_mint)
+            .and(prom_aave)
+            .as_return()
+    }
+
+    #[private]
+    pub fn sign_callback(
+        &mut self,
+        #[callback_result] call_result: Result<SignatureResponse, PromiseError>,
+        nonce: u64,
+        tx_type: u8,
+        ethereum_tx: EVMTransaction,
+    ) -> Vec<u8> {
+        match call_result {
+            Ok(sig) => {
+                let r_bytes = hex::decode(sig.big_r.affine_point).unwrap()[1..33].to_vec();
+                let s_bytes = hex::decode(sig.s.scalar).unwrap();
+                let signature = Signature {
+                    v: sig.recovery_id as u64,
+                    r: r_bytes,
+                    s: s_bytes,
+                };
+                let signed_tx = ethereum_tx.build_with_signature(&signature);
+                let mut payload = vec![tx_type];
+                payload.extend(signed_tx);
+
+                let mut log = self.logs.get(&nonce).expect("Log not found").clone();
+                log.transactions.push(payload.clone());
+                self.logs.insert(nonce, log);
+
+                payload
+            }
+            Err(e) => {
+                env::log_str(&format!("Signature callback failed: {:?}", e));
+                vec![]
+            }
+        }
+    }
 
     // Agent functions
     pub fn register_worker(
@@ -122,111 +341,6 @@ impl Contract {
             .insert(predecessor, Worker { checksum, codehash });
 
         true
-    }
-
-    #[payable]
-    pub fn hash_and_sign_evm_transaction(
-        &mut self,
-        evm_tx_params: EVMTransaction,
-        attached_deposit: NearToken,
-    ) -> Promise {
-        // Only approve workers with approved codehashes can call this function
-        self.require_worker_has_valid_codehash();
-
-        let encoded_data = evm_tx_params.build_for_signing();
-
-        let tx_hash = env::keccak256(&encoded_data);
-
-        // Ensure the payload is exactly 32 bytes
-        let payload: [u8; 32] = tx_hash.try_into().expect("Payload must be 32 bytes long");
-
-        let request: SignRequest = SignRequest {
-            payload,
-            path: PATH.to_string(),
-            key_version: KEY_VERSION,
-        };
-
-        let promise = mpc_contract::ext(MPC_CONTRACT_ACCOUNT_ID.parse().unwrap())
-            .with_static_gas(GAS)
-            .with_attached_deposit(attached_deposit)
-            .sign(request);
-
-        promise.then(
-            this_contract::ext(env::current_account_id())
-                .with_static_gas(CALLBACK_GAS)
-                .callback(evm_tx_params),
-        )
-    }
-
-    #[private]
-    pub fn callback(
-        &mut self,
-        #[callback_result] call_result: Result<SignatureResponse, PromiseError>,
-        ethereum_tx: EVMTransaction,
-    ) -> String {
-        match call_result {
-            Ok(signature_response) => {
-                env::log_str(&format!(
-                    "Successfully received signature: big_r = {:?}, s = {:?}, recovery_id = {}",
-                    signature_response.big_r, signature_response.s, signature_response.recovery_id
-                ));
-
-                // Extract r and s from the signature response
-                let affine_point_bytes = hex::decode(signature_response.big_r.affine_point)
-                    .expect("Failed to decode affine_point to bytes");
-
-                env::log_str(&format!(
-                    "Decoded affine_point bytes (length: {}): {:?}",
-                    affine_point_bytes.len(),
-                    hex::encode(&affine_point_bytes)
-                ));
-
-                // Extract r from the affine_point_bytes
-                let r_bytes = affine_point_bytes[1..33].to_vec();
-                assert_eq!(r_bytes.len(), 32, "r must be 32 bytes");
-
-                env::log_str(&format!(
-                    "Extracted r (32 bytes): {:?}",
-                    hex::encode(&r_bytes)
-                ));
-
-                let s_bytes = hex::decode(signature_response.s.scalar)
-                    .expect("Failed to decode scalar to bytes");
-
-                assert_eq!(s_bytes.len(), 32, "s must be 32 bytes");
-
-                env::log_str(&format!(
-                    "Decoded s (32 bytes): {:?}",
-                    hex::encode(&s_bytes)
-                ));
-
-                // decode the address from the signature response
-
-                // Calculate v
-                let v = signature_response.recovery_id as u64;
-                env::log_str(&format!("Calculated v: {}", v));
-
-                let signature_omni = Signature {
-                    v,
-                    r: r_bytes,
-                    s: s_bytes,
-                };
-                let omni_evm_tx_encoded_with_signature =
-                    ethereum_tx.build_with_signature(&signature_omni);
-
-                env::log_str(&format!(
-                    "Successfully signed transaction: {:?}",
-                    omni_evm_tx_encoded_with_signature
-                ));
-
-                // Serialise the updated transaction
-                hex::encode(omni_evm_tx_encoded_with_signature)
-            }
-            Err(error) => {
-                env::log_str(&format!("Callback failed with error: {:?}", error));
-                "Callback failed".to_string()
-            }
-        }
     }
 
     // Access control
