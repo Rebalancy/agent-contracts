@@ -1,90 +1,93 @@
-use alloy::providers::Provider;
-use near_primitives::action::FunctionCallAction;
-use omni_box::utils::{address, signature};
-use omni_box::OmniBox;
-use omni_transaction::evm::EVMTransaction;
+use near_workspaces::Account;
+use omni_transaction::evm::{utils::parse_eth_address, EVMTransaction};
 use serde_json::json;
-
-const PATH: &str = "ethereum-1";
 
 #[tokio::test]
 async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
-    let contract_wasm = near_workspaces::compile_project("./").await?;
-    // let omni_box = OmniBox::new().await;
+    let worker = near_workspaces::sandbox().await?;
 
-    // let evm_context = &omni_box.evm_context;
+    let wasm_bytes =
+        include_bytes!("../target/wasm32-unknown-unknown/release/shade_agent_contract.wasm")
+            .to_vec();
 
-    // // Prepare the transaction
-    // let to_address = &omni_box.evm_context.alice;
-    // let to_address = vec_to_array(to_address.default_signer().address().to_vec()).unwrap();
-    // let max_fee_per_gas: u128 = 20_000_000_000;
-    // let max_priority_fee_per_gas: u128 = 1_000_000_000;
-    // let gas_limit: u128 = 21_000;
-    // let chain_id: u64 = evm_context.anvil.chain_id();
-    // let nonce: u64 = 0;
-    // let input: Vec<u8> = vec![];
-    // let value: u128 = 10000000000000000; // 0.01 ETH
+    let contract = worker.dev_deploy(&wasm_bytes).await?;
 
-    // let tx = EVMTransaction {
-    //     nonce,
-    //     to: Some(to_address),
-    //     value,
-    //     input,
-    //     max_priority_fee_per_gas,
-    //     max_fee_per_gas,
-    //     gas_limit,
-    //     chain_id,
-    //     access_list: vec![],
-    // };
+    // Initialize contract
+    let owner: Account = worker.root_account().unwrap();
+    let init_result = contract
+        .call("init")
+        .args_json(json!({
+            "owner_id": owner.id(),
+            "source_chain": 1u64,
+            "configs": [
+                [1u64, {
+                    "aave": {
+                        "asset": "0x0000000000000000000000000000000000000000",
+                        "on_behalf_of": "0x0000000000000000000000000000000000000000",
+                        "referral_code": 0
+                    },
+                    "cctp": {},
+                    "rebalancer": {}
+                }]
+            ]
+        }))
+        .transact()
+        .await?
+        .into_result()?;
+    println!("Init result: {:?}", init_result);
 
-    // let derived_address =
-    //     address::get_derived_address_for_evm(&omni_box.deployer_account.account_id, PATH);
+    // Prepare Ethereum transaction
+    let chain_id: u64 = 1;
+    let nonce: u64 = 0x42;
+    let gas_limit = 44386;
+    let max_fee_per_gas = 0x4a817c800;
+    let max_priority_fee_per_gas = 0x3b9aca00;
+    let to_address = parse_eth_address("0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"); // Aave Lending Pool
+    let value = 0;
 
-    // println!("derived_address: {:?}", derived_address.address);
-    // let attached_deposit = omni_box.get_experimental_signature_deposit().await?;
+    let empty_tx = EVMTransaction {
+        chain_id,
+        nonce,
+        gas_limit,
+        max_fee_per_gas,
+        max_priority_fee_per_gas,
+        to: Some(to_address),
+        value,
+        input: vec![],
+        access_list: vec![],
+    };
 
-    // let args = json!({
-    //     "evm_tx_params": tx,
-    //     "attached_deposit": attached_deposit.to_string()
-    // });
+    let result = contract
+        .call("invest")
+        .args_json(json!({
+            "destination_chain": 1,
+            "aave_args": {
+                "amount": 1000,
+                "partial_transaction": empty_tx
+            },
+            "cctp_args": {
+                "amount": 1000,
+                "destination_domain": 100,
+                "mint_recipient": "0000000000000000000000000000000000000000000000000000000000000001",
+                "burn_token": "0000000000000000000000000000000000000001",
+                "destination_caller": "0000000000000000000000000000000000000001",
+                "max_fee": 0,
+                "min_finality_threshold": 0,
+                "message": [],
+                "attestation": [],
+                "partial_burn_transaction": empty_tx,
+                "partial_mint_transaction": empty_tx
+            },
+            "rebalancer_args": {
+                "amount": 1000,
+                "source_chain": 1,
+                "destination_chain": 1,
+                "partial_transaction": empty_tx
+            }
+        }))
+        .transact()
+        .await?;
 
-    // // Call the contract
-    // let signer_response = omni_box
-    //     .friendly_near_json_rpc_client
-    //     .send_action(FunctionCallAction {
-    //         method_name: "hash_and_sign_transaction".to_string(),
-    //         args: args.to_string().into_bytes(), // Convert directly to Vec<u8>
-    //         gas: 300000000000000,
-    //         deposit: 1000000000000000000000000,
-    //     })
-    //     .await?;
-
-    // println!("signer_response: {:?}", signer_response);
-
-    // // Convert the transaction to a hexadecimal string
-    // let hex_omni_tx = signature::extract_signed_transaction(&signer_response).unwrap();
-    // println!("omno tx in vec: {:?}", hex_omni_tx);
-    // println!("omni tx in hex {:?}", hex::encode(&hex_omni_tx));
-
-    // match omni_box
-    //     .evm_context
-    //     .provider
-    //     .send_raw_transaction(&hex_omni_tx)
-    //     .await
-    // {
-    //     Ok(tx_hash) => println!("Transaction sent successfully. Hash: {:?}", tx_hash),
-    //     Err(e) => println!("Failed to send transaction: {:?}", e),
-    // }
-
+    println!("Invest call result: {:?}", result);
     Ok(())
-}
-
-fn vec_to_array(vec: Vec<u8>) -> Result<[u8; 20], &'static str> {
-    if vec.len() == 20 {
-        let mut array = [0u8; 20];
-        array.copy_from_slice(&vec);
-        Ok(array)
-    } else {
-        Err("Vec length is not 20")
-    }
 }
