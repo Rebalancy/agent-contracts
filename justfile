@@ -3,7 +3,7 @@ run_agent:
 
 build-contract:
     echo "Building contract..."
-    cd contract && cargo build
+    cd contract && cargo near build non-reproducible-wasm
 
 test:
     echo "Running tests..."
