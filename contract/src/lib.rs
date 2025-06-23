@@ -17,7 +17,8 @@ use external::this_contract;
 use types::Worker;
 
 use crate::types::{
-    AaveArgs, ActivityLog, CCTPArgs, ChainConfig, ChainId, Config, PayloadType, RebalancerArgs,
+    AaveArgs, ActivityLog, BuiltTx, CCTPArgs, ChainConfig, ChainId, Config, PayloadType,
+    RebalancerArgs,
 };
 
 mod collateral;
@@ -82,54 +83,50 @@ impl Contract {
         //     .get(&self.source_chain)
         //     .expect("Chain not configured");
 
-        // 1. Encode Vault Payload
-        let invest_data = encoders::rebalancer::vault::encode_invest(rebalancer_args.amount);
-
-        // Create invest transaction
-        let mut invest_tx = rebalancer_args.partial_transaction;
-        invest_tx.input = invest_data;
-
         let destination_chain_config = self
             .config
             .get(&destination_chain)
             .expect("Chain not configured");
 
-        // 2.1 Encode Bridge Payload (Burn)
-        let burn_usdc_data = encoders::cctp::messenger::encode_deposit_for_burn(
-            U256::from(cctp_args.amount),
-            cctp_args.destination_domain,
-            B256::from_str(&cctp_args.mint_recipient).unwrap(),
-            Address::from_str(&cctp_args.burn_token).unwrap(),
-            B256::from_str(&cctp_args.destination_caller).unwrap(),
-            U256::from(cctp_args.max_fee),
-            cctp_args.min_finality_threshold,
-        );
+        // 1. Encode Vault Payload
+        let rebalancer_tx = self.build_invest_tx(rebalancer_args);
+        let rebalancer_payload = env::keccak256(&rebalancer_tx.encoded);
 
-        // Create burn transaction
-        let mut burn_tx = cctp_args.partial_burn_transaction;
-        burn_tx.input = burn_usdc_data;
+        // Ensure the payload is exactly 32 bytes
+        let rebalancer_payload: [u8; 32] = rebalancer_payload
+            .clone()
+            .try_into()
+            .expect("Payload must be 32 bytes long");
+
+        // 2.1 Encode Bridge Payload (Burn)
+        let burn_usdc_tx = self.build_cctp_burn_tx(cctp_args.clone());
+        let burn_usdc_payload = env::keccak256(&burn_usdc_tx.encoded);
+
+        // Ensure the payload is exactly 32 bytes
+        let burn_usdc_payload: [u8; 32] = burn_usdc_payload
+            .clone()
+            .try_into()
+            .expect("Payload must be 32 bytes long");
 
         // 2.2 Encode Bridge Payload (Mint)
-        let mint_usdc_data = encoders::cctp::transmitter::encode_receive_message(
-            cctp_args.message,
-            cctp_args.attestation,
-        );
+        let mint_usdc_tx = self.build_cctp_mint_tx(cctp_args);
+        let mint_usdc_payload = env::keccak256(&mint_usdc_tx.encoded);
 
-        // Create mint transaction
-        let mut mint_tx = cctp_args.partial_mint_transaction;
-        mint_tx.input = mint_usdc_data;
+        // Ensure the payload is exactly 32 bytes
+        let mint_usdc_payload: [u8; 32] = mint_usdc_payload
+            .clone()
+            .try_into()
+            .expect("Payload must be 32 bytes long");
 
         // 3. Encode Aave Supply Payload
-        let aave_data = encoders::aave::lending_pool::encode_supply(
-            Address::from_str(&destination_chain_config.aave.asset).unwrap(),
-            U256::from(aave_args.amount),
-            Address::from_str(&destination_chain_config.aave.on_behalf_of).unwrap(),
-            destination_chain_config.aave.referral_code,
-        );
+        let aave_tx = self.build_aave_tx(destination_chain, aave_args);
+        let aave_payload = env::keccak256(&aave_tx.encoded);
 
-        //  Create Aave supply transaction
-        let mut aave_tx = aave_args.partial_transaction;
-        aave_tx.input = aave_data;
+        // Ensure the payload is exactly 32 bytes
+        let aave_payload: [u8; 32] = aave_payload
+            .clone()
+            .try_into()
+            .expect("Payload must be 32 bytes long");
 
         let nonce = self.logs_nonce;
         self.logs_nonce += 1;
@@ -148,48 +145,29 @@ impl Contract {
         );
 
         // 5. Manually create the promises for each payload
-        let prom_rebalancer = ecdsa::get_sig(
-            invest_tx.build_for_signing().try_into().unwrap(),
-            "path_0".to_string(),
-            KEY_VERSION,
-        )
-        .then(
+        let prom_rebalancer = ecdsa::get_sig(rebalancer_payload, "path_0".to_string(), KEY_VERSION)
+            .then(
+                this_contract::ext(env::current_account_id())
+                    .with_static_gas(CALLBACK_GAS)
+                    .sign_callback(nonce, PayloadType::RebalancerInvest as u8, rebalancer_tx.tx),
+            );
+
+        let prom_burn = ecdsa::get_sig(burn_usdc_payload, "path_1".to_string(), KEY_VERSION).then(
             this_contract::ext(env::current_account_id())
                 .with_static_gas(CALLBACK_GAS)
-                .sign_callback(nonce, PayloadType::RebalancerInvest as u8, invest_tx),
+                .sign_callback(nonce, PayloadType::CCTPBurn as u8, burn_usdc_tx.tx),
         );
 
-        let prom_burn = ecdsa::get_sig(
-            burn_tx.build_for_signing().try_into().unwrap(),
-            "path_1".to_string(),
-            KEY_VERSION,
-        )
-        .then(
+        let prom_mint = ecdsa::get_sig(mint_usdc_payload, "path_2".to_string(), KEY_VERSION).then(
             this_contract::ext(env::current_account_id())
                 .with_static_gas(CALLBACK_GAS)
-                .sign_callback(nonce, PayloadType::CCTPBurn as u8, burn_tx),
+                .sign_callback(nonce, PayloadType::CCTPMint as u8, mint_usdc_tx.tx),
         );
 
-        let prom_mint = ecdsa::get_sig(
-            mint_tx.build_for_signing().try_into().unwrap(),
-            "path_2".to_string(),
-            KEY_VERSION,
-        )
-        .then(
+        let prom_aave = ecdsa::get_sig(aave_payload, "path_3".to_string(), KEY_VERSION).then(
             this_contract::ext(env::current_account_id())
                 .with_static_gas(CALLBACK_GAS)
-                .sign_callback(nonce, PayloadType::CCTPMint as u8, mint_tx),
-        );
-
-        let prom_aave = ecdsa::get_sig(
-            aave_tx.build_for_signing().try_into().unwrap(),
-            "path_3".to_string(),
-            KEY_VERSION,
-        )
-        .then(
-            this_contract::ext(env::current_account_id())
-                .with_static_gas(CALLBACK_GAS)
-                .sign_callback(nonce, PayloadType::AaveSupply as u8, aave_tx),
+                .sign_callback(nonce, PayloadType::AaveSupply as u8, aave_tx.tx),
         );
 
         // 6. Return the promises to be executed
@@ -234,14 +212,17 @@ impl Contract {
         }
     }
 
-    pub fn build_invest_tx(&self, args: RebalancerArgs) -> Vec<u8> {
+    pub fn build_invest_tx(&self, args: RebalancerArgs) -> BuiltTx {
         let input = encoders::rebalancer::vault::encode_invest(args.amount);
         let mut tx = args.partial_transaction;
         tx.input = input;
-        tx.build_for_signing().try_into().unwrap()
+        BuiltTx {
+            encoded: tx.build_for_signing().try_into().unwrap(),
+            tx,
+        }
     }
 
-    pub fn build_cctp_burn_tx(&self, args: CCTPArgs) -> Vec<u8> {
+    pub fn build_cctp_burn_tx(&self, args: CCTPArgs) -> BuiltTx {
         let input = encoders::cctp::messenger::encode_deposit_for_burn(
             U256::from(args.amount),
             args.destination_domain,
@@ -253,20 +234,28 @@ impl Contract {
         );
         let mut tx = args.partial_burn_transaction;
         tx.input = input;
-        tx.build_for_signing().try_into().unwrap()
+
+        BuiltTx {
+            encoded: tx.build_for_signing().try_into().unwrap(),
+            tx,
+        }
     }
 
-    pub fn build_cctp_mint_tx(&self, args: CCTPArgs) -> Vec<u8> {
+    pub fn build_cctp_mint_tx(&self, args: CCTPArgs) -> BuiltTx {
         let input = encoders::cctp::transmitter::encode_receive_message(
             args.message.clone(),
             args.attestation.clone(),
         );
         let mut tx = args.partial_mint_transaction;
         tx.input = input;
-        tx.build_for_signing().try_into().unwrap()
+
+        BuiltTx {
+            encoded: tx.build_for_signing().try_into().unwrap(),
+            tx,
+        }
     }
 
-    pub fn build_aave_tx(&self, destination_chain: ChainId, args: AaveArgs) -> Vec<u8> {
+    pub fn build_aave_tx(&self, destination_chain: ChainId, args: AaveArgs) -> BuiltTx {
         let destination_chain_config = self
             .config
             .get(&destination_chain)
@@ -281,7 +270,11 @@ impl Contract {
         );
         let mut tx = args.partial_transaction;
         tx.input = input;
-        tx.build_for_signing().try_into().unwrap()
+
+        BuiltTx {
+            encoded: tx.build_for_signing().try_into().unwrap(),
+            tx,
+        }
     }
 
     // Agent functions

@@ -70,14 +70,14 @@ pub struct ActivityLog {
 }
 
 // Args Structs
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AaveArgs {
     pub amount: u128,
     pub partial_transaction: EVMTransaction,
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct CCTPArgs {
     pub amount: u128,
@@ -93,11 +93,18 @@ pub struct CCTPArgs {
     pub partial_mint_transaction: EVMTransaction,
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct RebalancerArgs {
     pub amount: u128,
     pub source_chain: ChainId,
     pub destination_chain: ChainId,
     pub partial_transaction: EVMTransaction,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct BuiltTx {
+    pub encoded: Vec<u8>,
+    pub tx: EVMTransaction,
 }
