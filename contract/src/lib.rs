@@ -1,11 +1,9 @@
 use std::str::FromStr;
 
-use borsh::{BorshDeserialize, BorshSerialize};
 use dcap_qvl::verify;
 use hex::{decode, encode};
 use near_sdk::{
     env, near, require,
-    serde::{Deserialize, Serialize},
     store::{IterableMap, IterableSet},
     AccountId, NearToken, PanicOnDefault, Promise, PromiseError,
 };
@@ -16,100 +14,19 @@ use omni_transaction::signer::types::SignatureResponse;
 use alloy_primitives::{Address, B256, U256};
 use constants::*;
 use external::this_contract;
-use schemars::JsonSchema;
 use types::Worker;
+
+use crate::types::{
+    AaveArgs, ActivityLog, CCTPArgs, ChainConfig, ChainId, Config, PayloadType, RebalancerArgs,
+};
 
 mod collateral;
 mod constants;
 mod ecdsa;
 mod encoders;
 mod external;
+mod tx_builders;
 mod types;
-
-pub type ChainId = u64;
-
-// Config Structs
-#[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema, Debug)]
-#[serde(crate = "near_sdk::serde")]
-pub struct AaveConfig {
-    pub asset: String,
-    pub on_behalf_of: String,
-    pub referral_code: u16,
-}
-
-#[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema, Debug)]
-#[serde(crate = "near_sdk::serde")]
-pub struct CCTPConfig {
-    pub value: u128,
-}
-
-#[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema, Debug)]
-#[serde(crate = "near_sdk::serde")]
-pub struct RebalancerConfig {
-    pub value: u128,
-}
-
-#[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema, Debug)]
-#[serde(crate = "near_sdk::serde")]
-pub struct Config {
-    aave: AaveConfig,
-    cctp: CCTPConfig,
-    rebalancer: RebalancerConfig,
-}
-
-#[repr(u8)]
-pub enum PayloadType {
-    AaveSupply = 0,
-    AaveWithdraw = 1,
-    CCTPBurn = 2,
-    CCTPMint = 3,
-    RebalancerInvest = 4,
-    RebalancerRebalance = 5,
-}
-
-// Activity Structs
-#[derive(BorshDeserialize, BorshSerialize, Clone)]
-pub struct ActivityLog {
-    pub activity_type: String,
-    pub source_chain: ChainId,
-    pub destination_chain: ChainId,
-    pub transactions: Vec<Vec<u8>>,
-    pub timestamp: u64,
-    pub nonce: u64,
-}
-
-// Args Structs
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(crate = "near_sdk::serde")]
-pub struct AaveArgs {
-    pub amount: u128,
-    pub partial_transaction: EVMTransaction,
-}
-
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(crate = "near_sdk::serde")]
-pub struct CCTPArgs {
-    pub amount: u128,
-    pub destination_domain: u32,
-    pub mint_recipient: String,
-    pub burn_token: String,
-    pub destination_caller: String,
-    pub max_fee: u128,
-    pub min_finality_threshold: u32,
-    pub message: Vec<u8>,
-    pub attestation: Vec<u8>,
-    pub partial_burn_transaction: EVMTransaction,
-    pub partial_mint_transaction: EVMTransaction,
-}
-
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(crate = "near_sdk::serde")]
-pub struct RebalancerArgs {
-    pub amount: u128,
-    pub source_chain: ChainId,
-    pub destination_chain: ChainId,
-    pub partial_transaction: EVMTransaction,
-}
 
 #[near(contract_state)]
 #[derive(PanicOnDefault)]
@@ -121,13 +38,6 @@ pub struct Contract {
     pub config: IterableMap<ChainId, Config>,
     pub logs: IterableMap<u64, ActivityLog>,
     pub logs_nonce: u64,
-}
-
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(crate = "near_sdk::serde")]
-pub struct ChainConfig {
-    pub chain_id: ChainId,
-    pub config: Config,
 }
 
 #[near]
@@ -324,6 +234,56 @@ impl Contract {
         }
     }
 
+    pub fn build_invest_tx(&self, args: RebalancerArgs) -> Vec<u8> {
+        let input = encoders::rebalancer::vault::encode_invest(args.amount);
+        let mut tx = args.partial_transaction;
+        tx.input = input;
+        tx.build_for_signing().try_into().unwrap()
+    }
+
+    pub fn build_cctp_burn_tx(&self, args: CCTPArgs) -> Vec<u8> {
+        let input = encoders::cctp::messenger::encode_deposit_for_burn(
+            U256::from(args.amount),
+            args.destination_domain,
+            B256::from_str(&args.mint_recipient).expect("Invalid recipient"),
+            Address::from_str(&args.burn_token).expect("Invalid token address"),
+            B256::from_str(&args.destination_caller).expect("Invalid destination caller"),
+            U256::from(args.max_fee),
+            args.min_finality_threshold,
+        );
+        let mut tx = args.partial_burn_transaction;
+        tx.input = input;
+        tx.build_for_signing().try_into().unwrap()
+    }
+
+    pub fn build_cctp_mint_tx(&self, args: CCTPArgs) -> Vec<u8> {
+        let input = encoders::cctp::transmitter::encode_receive_message(
+            args.message.clone(),
+            args.attestation.clone(),
+        );
+        let mut tx = args.partial_mint_transaction;
+        tx.input = input;
+        tx.build_for_signing().try_into().unwrap()
+    }
+
+    pub fn build_aave_tx(&self, destination_chain: ChainId, args: AaveArgs) -> Vec<u8> {
+        let destination_chain_config = self
+            .config
+            .get(&destination_chain)
+            .expect("Chain not configured");
+
+        let input = encoders::aave::lending_pool::encode_supply(
+            Address::from_str(&destination_chain_config.aave.asset).expect("Invalid asset address"),
+            U256::from(args.amount),
+            Address::from_str(&destination_chain_config.aave.on_behalf_of)
+                .expect("Invalid on_behalf_of address"),
+            destination_chain_config.aave.referral_code,
+        );
+        let mut tx = args.partial_transaction;
+        tx.input = input;
+        tx.build_for_signing().try_into().unwrap()
+    }
+
     // Agent functions
     pub fn register_worker(
         &mut self,
@@ -380,3 +340,78 @@ impl Contract {
             .to_owned()
     }
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+
+//     use near_sdk::test_utils::VMContextBuilder;
+//     use near_sdk::{testing_env, AccountId};
+
+//     use alloy_primitives::{Address, B256, U256};
+//     use constants::KEY_VERSION;
+//     use omni_transaction::evm::EVMTransaction;
+//     use omni_transaction::signer::types::SignatureResponse;
+//     use types::{AaveArgs, CCTPArgs, RebalancerArgs};
+
+//     fn get_context() -> VMContextBuilder {
+//         VMContextBuilder::new()
+//             .current_account_id("test.near".parse().unwrap())
+//             .signer_account_id("test.near".parse().unwrap())
+//             .predecessor_account_id("test.near".parse().unwrap())
+//             .block_timestamp(1_000_000_000)
+//             .build()
+//     }
+
+//     #[test]
+//     fn test_init() {
+//         let context = get_context();
+//         testing_env!(context);
+//     }
+
+//     #[test]
+//     fn test_register_worker() {
+//         let context = get_context();
+//         testing_env!(context);
+//     }
+
+//     #[test]
+//     fn test_invest() {
+//         let context = get_context();
+//         testing_env!(context);
+//         let mut contract = Contract::init(
+//             ChainId::from(1),
+//             vec![ChainConfig {
+//                 chain_id: ChainId::from(1),
+//                 config: Config {
+//                     aave: AaveArgs {
+//                         amount: 1000,
+//                         partial_transaction: EVMTransaction::default(),
+//                     },
+//                     cctp: CCTPArgs {
+//                         amount: 1000,
+//                         destination_domain: 2,
+//                         mint_recipient: "recipient".to_string(),
+//                         burn_token: "burn_token".to_string(),
+//                         destination_caller: "destination_caller".to_string(),
+//                         max_fee: 10,
+//                         min_finality_threshold: 1,
+//                         message: vec![],
+//                         attestation: vec![],
+//                         partial_burn_transaction: EVMTransaction::default(),
+//                         partial_mint_transaction: EVMTransaction::default(),
+//                     },
+//                     rebalancer: RebalancerArgs {
+//                         amount: 1000,
+//                         partial_transaction: EVMTransaction::default(),
+//                     },
+//                 },
+//             }],
+//         );
+//         let destination_chain = ChainId::from(2);
+//         let aave_args = AaveArgs {
+//             amount: 1000,
+//             partial_transaction: EVMTransaction::default(),
+//         };
+//     }
+// }
