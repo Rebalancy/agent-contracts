@@ -198,7 +198,6 @@ impl Contract {
         // Create burn transaction
         let mut burn_tx = cctp_args.partial_burn_transaction;
         burn_tx.input = burn_usdc_data;
-        let mut payloads = vec![burn_tx.build_for_signing()];
 
         // 2.2 Encode Bridge Payload (Mint)
         let mint_usdc_data = encoders::cctp::transmitter::encode_receive_message(
@@ -209,7 +208,6 @@ impl Contract {
         // Create mint transaction
         let mut mint_tx = cctp_args.partial_mint_transaction;
         mint_tx.input = mint_usdc_data;
-        payloads.push(mint_tx.build_for_signing());
 
         // 3. Encode Aave Supply Payload
         let aave_data = encoders::aave::lending_pool::encode_supply(
@@ -222,7 +220,6 @@ impl Contract {
         //  Create Aave supply transaction
         let mut aave_tx = aave_args.partial_transaction;
         aave_tx.input = aave_data;
-        payloads.push(aave_tx.build_for_signing());
 
         let nonce = self.logs_nonce;
         self.logs_nonce += 1;
