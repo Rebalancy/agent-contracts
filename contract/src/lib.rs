@@ -187,26 +187,94 @@ impl Contract {
         ethereum_tx: EVMTransaction,
     ) -> Vec<u8> {
         match call_result {
-            Ok(sig) => {
-                let r_bytes = hex::decode(sig.big_r.affine_point).unwrap()[1..33].to_vec();
-                let s_bytes = hex::decode(sig.s.scalar).unwrap();
-                let signature = Signature {
-                    v: sig.recovery_id as u64,
+            Ok(signature_response) => {
+                env::log_str(&format!(
+                    "Successfully received signature: big_r = {:?}, s = {:?}, recovery_id = {}",
+                    signature_response.big_r, signature_response.s, signature_response.recovery_id
+                ));
+
+                // Extract r and s from the signature response
+                let affine_point_bytes =
+                    match hex::decode(signature_response.big_r.affine_point.clone()) {
+                        Ok(bytes) => bytes,
+                        Err(e) => {
+                            env::log_str(&format!(
+                                "Failed to decode affine_point to bytes: {:?}",
+                                e
+                            ));
+                            return vec![];
+                        }
+                    };
+
+                env::log_str(&format!(
+                    "Decoded affine_point bytes (length: {}): {:?}",
+                    affine_point_bytes.len(),
+                    hex::encode(&affine_point_bytes)
+                ));
+
+                if affine_point_bytes.len() < 33 {
+                    env::log_str("Affine point bytes too short to extract r.");
+                    return vec![];
+                }
+
+                // Extract r from the affine_point_bytes
+                let r_bytes = affine_point_bytes[1..33].to_vec();
+                assert_eq!(r_bytes.len(), 32, "r must be 32 bytes");
+
+                env::log_str(&format!(
+                    "Extracted r (32 bytes): {:?}",
+                    hex::encode(&r_bytes)
+                ));
+
+                let s_bytes = match hex::decode(signature_response.s.scalar.clone()) {
+                    Ok(bytes) => bytes,
+                    Err(e) => {
+                        env::log_str(&format!("Failed to decode scalar to bytes: {:?}", e));
+                        return vec![];
+                    }
+                };
+
+                if s_bytes.len() != 32 {
+                    env::log_str(&format!("Decoded s has invalid length: {}", s_bytes.len()));
+                    return vec![];
+                }
+
+                env::log_str(&format!(
+                    "Decoded s (32 bytes): {:?}",
+                    hex::encode(&s_bytes)
+                ));
+
+                // Calculate v
+                let v = signature_response.recovery_id as u64;
+                env::log_str(&format!("Calculated v: {}", v));
+
+                let signature_omni = Signature {
+                    v,
                     r: r_bytes,
                     s: s_bytes,
                 };
-                let signed_tx = ethereum_tx.build_with_signature(&signature);
-                let mut payload = vec![tx_type];
-                payload.extend(signed_tx);
 
+                let omni_evm_tx_encoded_with_signature =
+                    ethereum_tx.build_with_signature(&signature_omni);
+
+                env::log_str(&format!(
+                    "Successfully signed transaction: {:?}",
+                    omni_evm_tx_encoded_with_signature
+                ));
+
+                // Serialise the updated transaction
+                let mut payload = vec![tx_type];
+                payload.extend(omni_evm_tx_encoded_with_signature);
+
+                // Log and store the transaction in self.logs
                 let mut log = self.logs.get(&nonce).expect("Log not found").clone();
                 log.transactions.push(payload.clone());
                 self.logs.insert(nonce, log);
 
                 payload
             }
-            Err(e) => {
-                env::log_str(&format!("Signature callback failed: {:?}", e));
+            Err(error) => {
+                env::log_str(&format!("Callback failed with error: {:?}", error));
                 vec![]
             }
         }
