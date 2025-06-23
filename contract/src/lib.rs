@@ -29,7 +29,7 @@ mod types;
 pub type ChainId = u64;
 
 // Config Structs
-#[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AaveConfig {
     pub asset: String,
@@ -37,15 +37,19 @@ pub struct AaveConfig {
     pub referral_code: u16,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(crate = "near_sdk::serde")]
-pub struct CCTPConfig {}
+pub struct CCTPConfig {
+    pub value: u128,
+}
 
-#[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(crate = "near_sdk::serde")]
-pub struct RebalancerConfig {}
+pub struct RebalancerConfig {
+    pub value: u128,
+}
 
-#[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Config {
     aave: AaveConfig,
@@ -119,15 +123,20 @@ pub struct Contract {
     pub logs_nonce: u64,
 }
 
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(crate = "near_sdk::serde")]
+pub struct ChainConfig {
+    pub chain_id: ChainId,
+    pub config: Config,
+}
+
 #[near]
 impl Contract {
     #[init]
     #[private]
-    pub fn init(
-        owner_id: AccountId,
-        source_chain: ChainId,
-        configs: Vec<(ChainId, Config)>,
-    ) -> Self {
+    pub fn init(source_chain: ChainId, configs: Vec<ChainConfig>) -> Self {
+        let owner_id = env::predecessor_account_id();
+
         let mut contract = Self {
             owner_id,
             approved_codehashes: IterableSet::new(b"a"),
@@ -137,8 +146,8 @@ impl Contract {
             logs: IterableMap::new(b"d"),
             logs_nonce: 0,
         };
-        for (chain_id, cfg) in configs {
-            contract.config.insert(chain_id, cfg);
+        for cfg in configs {
+            contract.config.insert(cfg.chain_id, cfg.config);
         }
         contract
     }
