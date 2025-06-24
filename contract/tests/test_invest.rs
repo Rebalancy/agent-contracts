@@ -98,8 +98,6 @@ async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
             "destination_chain": 1,
             "partial_transaction": empty_tx
         },
-        "execute_mint": true,
-        "execute_aave": true,
         "gas_invest": 10,
         "gas_cctp_burn": 10,
         "gas_cctp_mint": 40,

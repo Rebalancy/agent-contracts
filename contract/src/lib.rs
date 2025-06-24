@@ -40,6 +40,8 @@ pub struct Contract {
     pub logs_nonce: u64,
 }
 
+const PATH: &str = "rebalancer";
+
 #[near]
 impl Contract {
     #[init]
@@ -76,8 +78,6 @@ impl Contract {
         rebalancer_args: RebalancerArgs,
         cctp_args: CCTPArgs,
         aave_args: AaveArgs,
-        execute_mint: bool,
-        execute_aave: bool,
         gas_invest: u64,
         gas_cctp_burn: u64,
         gas_cctp_mint: u64,
@@ -102,21 +102,14 @@ impl Contract {
 
         self.build_invest_tx(rebalancer_args, nonce, gas_invest);
         self.build_cctp_burn_tx(cctp_args.clone(), nonce, gas_cctp_burn);
-
-        if execute_mint {
-            self.build_cctp_mint_tx(cctp_args.clone(), nonce, gas_cctp_mint);
-        }
-
-        if execute_aave {
-            self.build_aave_tx(destination_chain, aave_args, nonce, gas_aave);
-        }
+        self.build_cctp_mint_tx(cctp_args.clone(), nonce, gas_cctp_mint);
+        self.build_aave_tx(destination_chain, aave_args, nonce, gas_aave);
 
         env::log_str(&format!("Invest started for nonce {}", nonce));
         nonce
     }
 
     fn build_invest_tx(&self, args: RebalancerArgs, nonce: u64, gas: u64) -> Promise {
-        // TODO: validate that the caller is the shade agent
         let callback_gas: Gas = Gas::from_tgas(gas);
 
         let input = encoders::rebalancer::vault::encode_invest(args.amount);
@@ -125,7 +118,7 @@ impl Contract {
 
         let payload = self.hash_payload(&tx);
 
-        ecdsa::get_sig(payload, "path_3".to_string(), KEY_VERSION).then(
+        ecdsa::get_sig(payload, PATH.to_string(), KEY_VERSION).then(
             this_contract::ext(env::current_account_id())
                 .with_static_gas(callback_gas)
                 .sign_callback(nonce, PayloadType::RebalancerInvest as u8, tx),
@@ -133,7 +126,6 @@ impl Contract {
     }
 
     fn build_cctp_burn_tx(&self, args: CCTPArgs, nonce: u64, gas: u64) -> Promise {
-        // TODO: validate that the caller is the shade agent
         let callback_gas: Gas = Gas::from_tgas(gas);
 
         let input = encoders::cctp::messenger::encode_deposit_for_burn(
@@ -150,7 +142,7 @@ impl Contract {
 
         let payload = self.hash_payload(&tx);
 
-        ecdsa::get_sig(payload, "path_3".to_string(), KEY_VERSION).then(
+        ecdsa::get_sig(payload, PATH.to_string(), KEY_VERSION).then(
             this_contract::ext(env::current_account_id())
                 .with_static_gas(callback_gas)
                 .sign_callback(nonce, PayloadType::CCTPBurn as u8, tx),
@@ -159,7 +151,6 @@ impl Contract {
 
     fn build_cctp_mint_tx(&self, args: CCTPArgs, nonce: u64, gas: u64) -> Promise {
         let callback_gas: Gas = Gas::from_tgas(gas);
-        // TODO: validate that the caller is the shade agent
 
         let input = encoders::cctp::transmitter::encode_receive_message(
             args.message.clone(),
@@ -170,7 +161,7 @@ impl Contract {
 
         let payload = self.hash_payload(&tx);
 
-        ecdsa::get_sig(payload, "path_3".to_string(), KEY_VERSION).then(
+        ecdsa::get_sig(payload, PATH.to_string(), KEY_VERSION).then(
             this_contract::ext(env::current_account_id())
                 .with_static_gas(callback_gas)
                 .sign_callback(nonce, PayloadType::CCTPMint as u8, tx),
@@ -185,8 +176,6 @@ impl Contract {
         gas: u64,
     ) -> Promise {
         let callback_gas: Gas = Gas::from_tgas(gas);
-
-        // TODO: validate that the caller is the shade agent
 
         let destination_chain_config = self
             .config
@@ -205,7 +194,7 @@ impl Contract {
 
         let payload = self.hash_payload(&tx);
 
-        ecdsa::get_sig(payload, "path_3".to_string(), KEY_VERSION).then(
+        ecdsa::get_sig(payload, PATH.to_string(), KEY_VERSION).then(
             this_contract::ext(env::current_account_id())
                 .with_static_gas(callback_gas)
                 .sign_callback(nonce, PayloadType::AaveSupply as u8, tx),
