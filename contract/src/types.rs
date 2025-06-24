@@ -59,7 +59,8 @@ pub enum PayloadType {
 }
 
 // Activity Structs
-#[derive(BorshDeserialize, BorshSerialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(crate = "near_sdk::serde")]
 pub struct ActivityLog {
     pub activity_type: String,
     pub source_chain: ChainId,
@@ -100,11 +101,4 @@ pub struct RebalancerArgs {
     pub source_chain: ChainId,
     pub destination_chain: ChainId,
     pub partial_transaction: EVMTransaction,
-}
-
-#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
-#[serde(crate = "near_sdk::serde")]
-pub struct BuiltTx {
-    pub encoded: Vec<u8>,
-    pub tx: EVMTransaction,
 }
