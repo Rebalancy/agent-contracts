@@ -70,103 +70,6 @@ impl Contract {
     /// 2. Bridge the withdrawn amount to the destination chain
     /// 3. Supply the bridged amount into Aave on the destination chain
     ///
-    pub fn build_invest_tx(&self, args: RebalancerArgs, nonce: u64, gas: u64) -> Promise {
-        // TODO: validate that the caller is the shade agent
-        let callback_gas: Gas = Gas::from_tgas(gas);
-
-        let input = encoders::rebalancer::vault::encode_invest(args.amount);
-        let mut tx = args.partial_transaction;
-        tx.input = input;
-
-        let payload = self.hash_payload(&tx);
-
-        ecdsa::get_sig(payload, "path_3".to_string(), KEY_VERSION).then(
-            this_contract::ext(env::current_account_id())
-                .with_static_gas(callback_gas)
-                .sign_callback(nonce, PayloadType::RebalancerInvest as u8, tx),
-        )
-    }
-
-    pub fn build_cctp_burn_tx(&self, args: CCTPArgs, nonce: u64, gas: u64) -> Promise {
-        // TODO: validate that the caller is the shade agent
-        let callback_gas: Gas = Gas::from_tgas(gas);
-
-        let input = encoders::cctp::messenger::encode_deposit_for_burn(
-            U256::from(args.amount),
-            args.destination_domain,
-            B256::from_str(&args.mint_recipient).expect("Invalid recipient"),
-            Address::from_str(&args.burn_token).expect("Invalid token address"),
-            B256::from_str(&args.destination_caller).expect("Invalid destination caller"),
-            U256::from(args.max_fee),
-            args.min_finality_threshold,
-        );
-        let mut tx = args.partial_burn_transaction;
-        tx.input = input;
-
-        let payload = self.hash_payload(&tx);
-
-        ecdsa::get_sig(payload, "path_3".to_string(), KEY_VERSION).then(
-            this_contract::ext(env::current_account_id())
-                .with_static_gas(callback_gas)
-                .sign_callback(nonce, PayloadType::CCTPBurn as u8, tx),
-        )
-    }
-
-    pub fn build_cctp_mint_tx(&self, args: CCTPArgs, nonce: u64, gas: u64) -> Promise {
-        let callback_gas: Gas = Gas::from_tgas(gas);
-        // TODO: validate that the caller is the shade agent
-
-        let input = encoders::cctp::transmitter::encode_receive_message(
-            args.message.clone(),
-            args.attestation.clone(),
-        );
-        let mut tx = args.partial_mint_transaction;
-        tx.input = input;
-
-        let payload = self.hash_payload(&tx);
-
-        ecdsa::get_sig(payload, "path_3".to_string(), KEY_VERSION).then(
-            this_contract::ext(env::current_account_id())
-                .with_static_gas(callback_gas)
-                .sign_callback(nonce, PayloadType::CCTPMint as u8, tx),
-        )
-    }
-
-    pub fn build_aave_tx(
-        &self,
-        destination_chain: ChainId,
-        args: AaveArgs,
-        nonce: u64,
-        gas: u64,
-    ) -> Promise {
-        let callback_gas: Gas = Gas::from_tgas(gas);
-
-        // TODO: validate that the caller is the shade agent
-
-        let destination_chain_config = self
-            .config
-            .get(&destination_chain)
-            .expect("Chain not configured");
-
-        let input = encoders::aave::lending_pool::encode_supply(
-            Address::from_str(&destination_chain_config.aave.asset).expect("Invalid asset address"),
-            U256::from(args.amount),
-            Address::from_str(&destination_chain_config.aave.on_behalf_of)
-                .expect("Invalid on_behalf_of address"),
-            destination_chain_config.aave.referral_code,
-        );
-        let mut tx = args.partial_transaction;
-        tx.input = input;
-
-        let payload = self.hash_payload(&tx);
-
-        ecdsa::get_sig(payload, "path_3".to_string(), KEY_VERSION).then(
-            this_contract::ext(env::current_account_id())
-                .with_static_gas(callback_gas)
-                .sign_callback(nonce, PayloadType::AaveSupply as u8, tx),
-        )
-    }
-
     pub fn invest(
         &mut self,
         destination_chain: ChainId,
@@ -212,11 +115,101 @@ impl Contract {
         nonce
     }
 
-    pub fn get_signed_transactions(&self, nonce: u64) -> Vec<Vec<u8>> {
-        self.logs
-            .get(&nonce)
-            .map(|log| log.transactions.clone())
-            .unwrap_or_default()
+    fn build_invest_tx(&self, args: RebalancerArgs, nonce: u64, gas: u64) -> Promise {
+        // TODO: validate that the caller is the shade agent
+        let callback_gas: Gas = Gas::from_tgas(gas);
+
+        let input = encoders::rebalancer::vault::encode_invest(args.amount);
+        let mut tx = args.partial_transaction;
+        tx.input = input;
+
+        let payload = self.hash_payload(&tx);
+
+        ecdsa::get_sig(payload, "path_3".to_string(), KEY_VERSION).then(
+            this_contract::ext(env::current_account_id())
+                .with_static_gas(callback_gas)
+                .sign_callback(nonce, PayloadType::RebalancerInvest as u8, tx),
+        )
+    }
+
+    fn build_cctp_burn_tx(&self, args: CCTPArgs, nonce: u64, gas: u64) -> Promise {
+        // TODO: validate that the caller is the shade agent
+        let callback_gas: Gas = Gas::from_tgas(gas);
+
+        let input = encoders::cctp::messenger::encode_deposit_for_burn(
+            U256::from(args.amount),
+            args.destination_domain,
+            B256::from_str(&args.mint_recipient).expect("Invalid recipient"),
+            Address::from_str(&args.burn_token).expect("Invalid token address"),
+            B256::from_str(&args.destination_caller).expect("Invalid destination caller"),
+            U256::from(args.max_fee),
+            args.min_finality_threshold,
+        );
+        let mut tx = args.partial_burn_transaction;
+        tx.input = input;
+
+        let payload = self.hash_payload(&tx);
+
+        ecdsa::get_sig(payload, "path_3".to_string(), KEY_VERSION).then(
+            this_contract::ext(env::current_account_id())
+                .with_static_gas(callback_gas)
+                .sign_callback(nonce, PayloadType::CCTPBurn as u8, tx),
+        )
+    }
+
+    fn build_cctp_mint_tx(&self, args: CCTPArgs, nonce: u64, gas: u64) -> Promise {
+        let callback_gas: Gas = Gas::from_tgas(gas);
+        // TODO: validate that the caller is the shade agent
+
+        let input = encoders::cctp::transmitter::encode_receive_message(
+            args.message.clone(),
+            args.attestation.clone(),
+        );
+        let mut tx = args.partial_mint_transaction;
+        tx.input = input;
+
+        let payload = self.hash_payload(&tx);
+
+        ecdsa::get_sig(payload, "path_3".to_string(), KEY_VERSION).then(
+            this_contract::ext(env::current_account_id())
+                .with_static_gas(callback_gas)
+                .sign_callback(nonce, PayloadType::CCTPMint as u8, tx),
+        )
+    }
+
+    fn build_aave_tx(
+        &self,
+        destination_chain: ChainId,
+        args: AaveArgs,
+        nonce: u64,
+        gas: u64,
+    ) -> Promise {
+        let callback_gas: Gas = Gas::from_tgas(gas);
+
+        // TODO: validate that the caller is the shade agent
+
+        let destination_chain_config = self
+            .config
+            .get(&destination_chain)
+            .expect("Chain not configured");
+
+        let input = encoders::aave::lending_pool::encode_supply(
+            Address::from_str(&destination_chain_config.aave.asset).expect("Invalid asset address"),
+            U256::from(args.amount),
+            Address::from_str(&destination_chain_config.aave.on_behalf_of)
+                .expect("Invalid on_behalf_of address"),
+            destination_chain_config.aave.referral_code,
+        );
+        let mut tx = args.partial_transaction;
+        tx.input = input;
+
+        let payload = self.hash_payload(&tx);
+
+        ecdsa::get_sig(payload, "path_3".to_string(), KEY_VERSION).then(
+            this_contract::ext(env::current_account_id())
+                .with_static_gas(callback_gas)
+                .sign_callback(nonce, PayloadType::AaveSupply as u8, tx),
+        )
     }
 
     #[private]
@@ -376,6 +369,13 @@ impl Contract {
     }
 
     // Views
+
+    pub fn get_signed_transactions(&self, nonce: u64) -> Vec<Vec<u8>> {
+        self.logs
+            .get(&nonce)
+            .map(|log| log.transactions.clone())
+            .unwrap_or_default()
+    }
 
     pub fn get_worker(&self, account_id: AccountId) -> Worker {
         self.worker_by_account_id
