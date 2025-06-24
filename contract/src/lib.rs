@@ -182,8 +182,8 @@ impl Contract {
 
         self.build_invest_tx(rebalancer_args, nonce);
         self.build_cctp_burn_tx(cctp_args.clone(), nonce);
-        self.build_cctp_mint_tx(cctp_args, nonce);
-        self.build_aave_tx(destination_chain, aave_args, nonce);
+        // self.build_cctp_mint_tx(cctp_args, nonce);
+        // self.build_aave_tx(destination_chain, aave_args, nonce);
 
         env::log_str(&format!("Invest started for nonce {}", nonce));
         nonce
