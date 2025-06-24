@@ -65,6 +65,81 @@ impl Contract {
 
     // DeFi functions
 
+    // Invest
+    pub fn build_invest_tx(&self, args: RebalancerArgs) -> BuiltTx {
+        let input = encoders::rebalancer::vault::encode_invest(args.amount);
+        let mut tx = args.partial_transaction;
+        tx.input = input;
+        BuiltTx {
+            encoded: tx.build_for_signing().try_into().unwrap(),
+            tx,
+        }
+    }
+
+    pub fn build_cctp_burn_tx(&self, args: CCTPArgs) -> BuiltTx {
+        let input = encoders::cctp::messenger::encode_deposit_for_burn(
+            U256::from(args.amount),
+            args.destination_domain,
+            B256::from_str(&args.mint_recipient).expect("Invalid recipient"),
+            Address::from_str(&args.burn_token).expect("Invalid token address"),
+            B256::from_str(&args.destination_caller).expect("Invalid destination caller"),
+            U256::from(args.max_fee),
+            args.min_finality_threshold,
+        );
+        let mut tx = args.partial_burn_transaction;
+        tx.input = input;
+
+        BuiltTx {
+            encoded: tx.build_for_signing().try_into().unwrap(),
+            tx,
+        }
+    }
+
+    pub fn build_cctp_mint_tx(&self, args: CCTPArgs) -> BuiltTx {
+        let input = encoders::cctp::transmitter::encode_receive_message(
+            args.message.clone(),
+            args.attestation.clone(),
+        );
+        let mut tx = args.partial_mint_transaction;
+        tx.input = input;
+
+        BuiltTx {
+            encoded: tx.build_for_signing().try_into().unwrap(),
+            tx,
+        }
+    }
+
+    pub fn build_aave_tx(&self, destination_chain: ChainId, args: AaveArgs) -> BuiltTx {
+        let destination_chain_config = self
+            .config
+            .get(&destination_chain)
+            .expect("Chain not configured");
+
+        let input = encoders::aave::lending_pool::encode_supply(
+            Address::from_str(&destination_chain_config.aave.asset).expect("Invalid asset address"),
+            U256::from(args.amount),
+            Address::from_str(&destination_chain_config.aave.on_behalf_of)
+                .expect("Invalid on_behalf_of address"),
+            destination_chain_config.aave.referral_code,
+        );
+        let mut tx = args.partial_transaction;
+        tx.input = input;
+
+        let payload = env::keccak256(&tx.build_for_signing());
+
+        // Ensure the payload is exactly 32 bytes
+        let payload: [u8; 32] = payload
+            .clone()
+            .try_into()
+            .expect("Payload must be 32 bytes long");
+
+        let prom_aave = ecdsa::get_sig(aave_payload, "path_3".to_string(), KEY_VERSION).then(
+            this_contract::ext(env::current_account_id())
+                .with_static_gas(CALLBACK_GAS)
+                .sign_callback(nonce, PayloadType::AaveSupply as u8, aave_tx.tx),
+        );
+    }
+
     /// Invest is an action that means:
     /// 1. Withdraw from the source chain vault
     /// 2. Bridge the withdrawn amount to the destination chain
@@ -277,71 +352,6 @@ impl Contract {
                 env::log_str(&format!("Callback failed with error: {:?}", error));
                 vec![]
             }
-        }
-    }
-
-    pub fn build_invest_tx(&self, args: RebalancerArgs) -> BuiltTx {
-        let input = encoders::rebalancer::vault::encode_invest(args.amount);
-        let mut tx = args.partial_transaction;
-        tx.input = input;
-        BuiltTx {
-            encoded: tx.build_for_signing().try_into().unwrap(),
-            tx,
-        }
-    }
-
-    pub fn build_cctp_burn_tx(&self, args: CCTPArgs) -> BuiltTx {
-        let input = encoders::cctp::messenger::encode_deposit_for_burn(
-            U256::from(args.amount),
-            args.destination_domain,
-            B256::from_str(&args.mint_recipient).expect("Invalid recipient"),
-            Address::from_str(&args.burn_token).expect("Invalid token address"),
-            B256::from_str(&args.destination_caller).expect("Invalid destination caller"),
-            U256::from(args.max_fee),
-            args.min_finality_threshold,
-        );
-        let mut tx = args.partial_burn_transaction;
-        tx.input = input;
-
-        BuiltTx {
-            encoded: tx.build_for_signing().try_into().unwrap(),
-            tx,
-        }
-    }
-
-    pub fn build_cctp_mint_tx(&self, args: CCTPArgs) -> BuiltTx {
-        let input = encoders::cctp::transmitter::encode_receive_message(
-            args.message.clone(),
-            args.attestation.clone(),
-        );
-        let mut tx = args.partial_mint_transaction;
-        tx.input = input;
-
-        BuiltTx {
-            encoded: tx.build_for_signing().try_into().unwrap(),
-            tx,
-        }
-    }
-
-    pub fn build_aave_tx(&self, destination_chain: ChainId, args: AaveArgs) -> BuiltTx {
-        let destination_chain_config = self
-            .config
-            .get(&destination_chain)
-            .expect("Chain not configured");
-
-        let input = encoders::aave::lending_pool::encode_supply(
-            Address::from_str(&destination_chain_config.aave.asset).expect("Invalid asset address"),
-            U256::from(args.amount),
-            Address::from_str(&destination_chain_config.aave.on_behalf_of)
-                .expect("Invalid on_behalf_of address"),
-            destination_chain_config.aave.referral_code,
-        );
-        let mut tx = args.partial_transaction;
-        tx.input = input;
-
-        BuiltTx {
-            encoded: tx.build_for_signing().try_into().unwrap(),
-            tx,
         }
     }
 
