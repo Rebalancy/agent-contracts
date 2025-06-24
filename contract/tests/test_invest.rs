@@ -41,16 +41,16 @@ async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
         }]
     });
 
-    // let init_result = friendly_json_rpc_client
-    //     .send_action(FunctionCallAction {
-    //         method_name: "init".to_string(),
-    //         args: init_args.to_string().into_bytes(), // Convert directly to Vec<u8>
-    //         gas: 300000000000000,
-    //         deposit: 0,
-    //     })
-    //     .await?;
+    let init_result = friendly_json_rpc_client
+        .send_action(FunctionCallAction {
+            method_name: "init".to_string(),
+            args: init_args.to_string().into_bytes(), // Convert directly to Vec<u8>
+            gas: 300000000000000,
+            deposit: 0,
+        })
+        .await?;
 
-    // println!("Init result: {:?}", init_result);
+    println!("Init result: {:?}", init_result);
 
     // Prepare Ethereum transaction
     let chain_id: u64 = 1;
@@ -97,7 +97,13 @@ async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
             "source_chain": 1,
             "destination_chain": 1,
             "partial_transaction": empty_tx
-        }
+        },
+        "execute_mint": true,
+        "execute_aave": true,
+        "gas_invest": 10,
+        "gas_cctp_burn": 10,
+        "gas_cctp_mint": 40,
+        "gas_aave": 20,
     });
 
     let invest_result = friendly_json_rpc_client
@@ -111,97 +117,16 @@ async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Invest call result: {:?}", invest_result);
 
-    // let rebalancer_args = json!({
-    //     "args": {
-    //         "amount": 1000,
-    //         "source_chain": 1,
-    //         "destination_chain": 1,
-    //         "partial_transaction": empty_tx
-    //     }
-    // });
+    let call_contract = friendly_json_rpc_client
+        .call_contract::<Vec<Vec<u8>>>(
+            "get_signed_transactions",
+            json!({
+            "nonce": 1
+            }),
+        )
+        .await?;
 
-    // let rebalancer_result = friendly_json_rpc_client
-    //     .send_action(FunctionCallAction {
-    //         method_name: "build_invest_tx".to_string(),
-    //         args: rebalancer_args.to_string().into_bytes(), // Convert directly to Vec<u8>
-    //         gas: 300000000000000,
-    //         deposit: 0,
-    //     })
-    //     .await?;
-
-    // println!("Invest call result: {:?}", rebalancer_result);
-    // let cctp_args = json!({
-    //     "args": {
-    //         "amount": 1000,
-    //         "destination_domain": 100,
-    //         "mint_recipient": address_to_bytes32_string("87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"),
-    //         "burn_token": "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
-    //         "destination_caller": address_to_bytes32_string("87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"),
-    //         "max_fee": 0,
-    //         "min_finality_threshold": 0,
-    //         "message": [],
-    //         "attestation": [],
-    //         "partial_burn_transaction": empty_tx,
-    //         "partial_mint_transaction": empty_tx
-    //     }
-    // });
-
-    // let build_cctp_burn_result = friendly_json_rpc_client
-    //     .send_action(FunctionCallAction {
-    //         method_name: "build_cctp_burn_tx".to_string(),
-    //         args: cctp_args.to_string().into_bytes(), // Convert directly to Vec<u8>
-    //         gas: 300000000000000,
-    //         deposit: 0,
-    //     })
-    //     .await?;
-
-    // println!("CCTP burn call result: {:?}", build_cctp_burn_result);
-
-    // let cctp_args_mint = json!({
-    //     "args": {
-    //         "amount": 1000,
-    //         "destination_domain": 100,
-    //         "mint_recipient": address_to_bytes32_string("87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"),
-    //         "burn_token": "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
-    //         "destination_caller": address_to_bytes32_string("87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"),
-    //         "max_fee": 0,
-    //         "min_finality_threshold": 0,
-    //         "message": [],
-    //         "attestation": [],
-    //         "partial_burn_transaction": empty_tx,
-    //         "partial_mint_transaction": empty_tx
-    //     }
-    // });
-
-    // let build_cctp_mint_result = friendly_json_rpc_client
-    //     .send_action(FunctionCallAction {
-    //         method_name: "build_cctp_mint_tx".to_string(),
-    //         args: cctp_args_mint.to_string().into_bytes(), // Convert directly to Vec<u8>
-    //         gas: 300000000000000,
-    //         deposit: 0,
-    //     })
-    //     .await?;
-
-    // println!("CCTP mint call result: {:?}", build_cctp_mint_result);
-
-    // let aave_args = json!({
-    //     "destination_chain": 1,
-    //     "args": {
-    //         "amount": 1000,
-    //         "partial_transaction": empty_tx
-    //     }
-    // });
-
-    // let build_aave_result = friendly_json_rpc_client
-    //     .send_action(FunctionCallAction {
-    //         method_name: "build_aave_tx".to_string(),
-    //         args: aave_args.to_string().into_bytes(), // Convert directly to Vec<u8>
-    //         gas: 300000000000000,
-    //         deposit: 0,
-    //     })
-    //     .await?;
-
-    // println!("Aave build call result: {:?}", build_aave_result);
+    println!("Get signed transactions result: {:?}", call_contract);
 
     Ok(())
 }
