@@ -7,6 +7,7 @@ mod utils;
 use crate::utils::account_config::get_user_account_info_from_file;
 use crate::utils::friendly_json_rpc_client::near_network_config::NearNetworkConfig;
 use crate::utils::friendly_json_rpc_client::FriendlyNearJsonRpcClient;
+use shade_agent_contract::types::ActivityLog;
 
 #[tokio::test]
 async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
@@ -136,4 +137,25 @@ fn address_to_bytes32_string(addr: &str) -> String {
     let padded = format!("{:0>64}", addr); // pad left with zeros to reach 64 chars
     println!("Padded address_to_bytes32_string: {}", padded);
     padded
+}
+
+#[tokio::test]
+async fn test_get_activity() -> Result<(), Box<dyn std::error::Error>> {
+    let deployer_account = get_user_account_info_from_file(None)?;
+
+    let friendly_json_rpc_client =
+        FriendlyNearJsonRpcClient::new(NearNetworkConfig::Testnet, deployer_account.clone());
+
+    let result = friendly_json_rpc_client
+        .call_contract::<Vec<ActivityLog>>(
+            "get_latest_logs",
+            json!({
+                "count": 10
+            }),
+        )
+        .await?;
+
+    println!("Get latest logs result: {:?}", result);
+
+    Ok(())
 }

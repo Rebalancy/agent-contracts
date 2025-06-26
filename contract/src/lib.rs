@@ -26,7 +26,7 @@ mod ecdsa;
 mod encoders;
 mod external;
 mod tx_builders;
-mod types;
+pub mod types;
 
 #[near(contract_state)]
 #[derive(PanicOnDefault)]
@@ -371,5 +371,24 @@ impl Contract {
             .get(&account_id)
             .unwrap()
             .to_owned()
+    }
+
+    pub fn get_latest_logs(&self, count: u64) -> Vec<ActivityLog> {
+        let mut logs = Vec::new();
+        let current_nonce = self.logs_nonce;
+
+        let start = if current_nonce > count {
+            current_nonce - count
+        } else {
+            0
+        };
+
+        for nonce in (start..current_nonce).rev() {
+            if let Some(log) = self.logs.get(&nonce) {
+                logs.push(log.clone());
+            }
+        }
+
+        logs
     }
 }
