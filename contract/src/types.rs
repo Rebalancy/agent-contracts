@@ -49,6 +49,8 @@ pub struct Config {
 }
 
 #[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
 pub enum PayloadType {
     AaveSupply = 0,
     AaveWithdraw = 1,
@@ -56,6 +58,20 @@ pub enum PayloadType {
     CCTPMint = 3,
     RebalancerInvest = 4,
     RebalancerRebalance = 5,
+}
+
+impl From<u8> for PayloadType {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => PayloadType::AaveSupply,
+            1 => PayloadType::AaveWithdraw,
+            2 => PayloadType::CCTPBurn,
+            3 => PayloadType::CCTPMint,
+            4 => PayloadType::RebalancerInvest,
+            5 => PayloadType::RebalancerRebalance,
+            _ => panic!("Unknown PayloadType: {}", value),
+        }
+    }
 }
 
 // Activity Structs
