@@ -11,6 +11,7 @@ use shade_agent_contract::types::{ActivityLog, PayloadType};
 use std::collections::HashMap;
 
 #[tokio::test]
+#[ignore] // Ignore this test by default, as it requires a specific setup
 async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
     let deployer_account = get_user_account_info_from_file(None)?;
 
@@ -117,36 +118,6 @@ async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Invest call result: {:?}", invest_result);
 
-    let payloads = friendly_json_rpc_client
-        .call_contract::<Vec<Vec<u8>>>(
-            "get_signed_transactions",
-            json!({
-            "nonce": 1
-            }),
-        )
-        .await?;
-
-    println!("Get signed transactions result: {:?}", payloads);
-
-    let mut grouped: HashMap<PayloadType, Vec<u8>> = HashMap::new();
-
-    for payload in payloads {
-        if payload.is_empty() {
-            continue;
-        }
-        let payload_type = PayloadType::from(payload[0]);
-        let raw_tx = payload[1..].to_vec(); // tx without the first byte (the type)
-
-        // only insert if the type is not already present
-        // this ensures that we do not have duplicate transaction types
-        let already = grouped.insert(payload_type, raw_tx);
-        assert!(already.is_none(), "Duplicate transaction type found!");
-    }
-
-    for (ptype, tx) in grouped {
-        println!("Tx type {:?}: 0x{}", ptype, hex::encode(tx));
-    }
-
     Ok(())
 }
 
@@ -176,6 +147,46 @@ async fn test_get_activity() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     println!("Get latest logs result: {:?}", result);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn get_signed_transactions() -> Result<(), Box<dyn std::error::Error>> {
+    let deployer_account = get_user_account_info_from_file(None)?;
+
+    let friendly_json_rpc_client =
+        FriendlyNearJsonRpcClient::new(NearNetworkConfig::Testnet, deployer_account.clone());
+
+    let payloads = friendly_json_rpc_client
+        .call_contract::<Vec<Vec<u8>>>(
+            "get_signed_transactions",
+            json!({
+            "nonce": 0
+            }),
+        )
+        .await?;
+
+    println!("Get signed transactions result: {:?}", payloads);
+
+    let mut grouped: HashMap<PayloadType, Vec<u8>> = HashMap::new();
+
+    for payload in payloads {
+        if payload.is_empty() {
+            continue;
+        }
+        let payload_type = PayloadType::from(payload[0]);
+        let raw_tx = payload[1..].to_vec(); // tx without the first byte (the type)
+
+        // only insert if the type is not already present
+        // this ensures that we do not have duplicate transaction types
+        let already = grouped.insert(payload_type, raw_tx);
+        assert!(already.is_none(), "Duplicate transaction type found!");
+    }
+
+    for (ptype, tx) in grouped {
+        println!("Tx type {:?}: 0x{}", ptype, hex::encode(tx));
+    }
 
     Ok(())
 }
