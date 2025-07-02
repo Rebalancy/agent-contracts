@@ -126,6 +126,7 @@ mod tests {
             asset: "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2".to_string(),
             on_behalf_of: "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2".to_string(),
             referral_code: 0,
+            lending_pool_address: "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2".to_string(),
         };
         let payload = build_aave_tx(args, config);
         println!("aave payload: {}", encode(&payload));

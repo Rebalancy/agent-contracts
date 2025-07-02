@@ -66,7 +66,6 @@ impl Contract {
 
     // DeFi functions
 
-    // Invest
     /// Invest is an action that means:
     /// 1. Withdraw from the source chain vault
     /// 2. Bridge the withdrawn amount to the destination chain
@@ -100,21 +99,38 @@ impl Contract {
             },
         );
 
-        self.build_invest_tx(rebalancer_args, nonce, gas_invest);
-        self.build_cctp_burn_tx(cctp_args.clone(), nonce, gas_cctp_burn);
-        self.build_cctp_mint_tx(cctp_args.clone(), nonce, gas_cctp_mint);
+        self.build_invest_tx(destination_chain, rebalancer_args, nonce, gas_invest);
+        self.build_cctp_burn_tx(destination_chain, cctp_args.clone(), nonce, gas_cctp_burn);
+        self.build_cctp_mint_tx(destination_chain, cctp_args.clone(), nonce, gas_cctp_mint);
         self.build_aave_tx(destination_chain, aave_args, nonce, gas_aave);
 
         env::log_str(&format!("Invest started for nonce {}", nonce));
         nonce
     }
 
-    fn build_invest_tx(&self, args: RebalancerArgs, nonce: u64, gas: u64) -> Promise {
+    fn build_invest_tx(
+        &self,
+        destination_chain: ChainId,
+        args: RebalancerArgs,
+        nonce: u64,
+        gas: u64,
+    ) -> Promise {
         let callback_gas: Gas = Gas::from_tgas(gas);
+
+        let destination_chain_config = self
+            .config
+            .get(&destination_chain)
+            .expect("Chain not configured");
 
         let input = encoders::rebalancer::vault::encode_invest(args.amount);
         let mut tx = args.partial_transaction;
         tx.input = input;
+
+        let address = Address::from_str(&destination_chain_config.aave.lending_pool_address)
+            .expect("Invalid address string")
+            .into_array();
+
+        tx.to = Some(address);
 
         let payload = self.hash_payload(&tx);
 
@@ -125,8 +141,19 @@ impl Contract {
         )
     }
 
-    fn build_cctp_burn_tx(&self, args: CCTPArgs, nonce: u64, gas: u64) -> Promise {
+    fn build_cctp_burn_tx(
+        &self,
+        destination_chain: ChainId,
+        args: CCTPArgs,
+        nonce: u64,
+        gas: u64,
+    ) -> Promise {
         let callback_gas: Gas = Gas::from_tgas(gas);
+
+        let destination_chain_config = self
+            .config
+            .get(&destination_chain)
+            .expect("Chain not configured");
 
         let input = encoders::cctp::messenger::encode_deposit_for_burn(
             U256::from(args.amount),
@@ -140,6 +167,12 @@ impl Contract {
         let mut tx = args.partial_burn_transaction;
         tx.input = input;
 
+        let address = Address::from_str(&destination_chain_config.aave.lending_pool_address)
+            .expect("Invalid address string")
+            .into_array();
+
+        tx.to = Some(address);
+
         let payload = self.hash_payload(&tx);
 
         ecdsa::get_sig(payload, PATH.to_string(), KEY_VERSION).then(
@@ -149,8 +182,19 @@ impl Contract {
         )
     }
 
-    fn build_cctp_mint_tx(&self, args: CCTPArgs, nonce: u64, gas: u64) -> Promise {
+    fn build_cctp_mint_tx(
+        &self,
+        destination_chain: ChainId,
+        args: CCTPArgs,
+        nonce: u64,
+        gas: u64,
+    ) -> Promise {
         let callback_gas: Gas = Gas::from_tgas(gas);
+
+        let destination_chain_config = self
+            .config
+            .get(&destination_chain)
+            .expect("Chain not configured");
 
         let input = encoders::cctp::transmitter::encode_receive_message(
             args.message.clone(),
@@ -158,6 +202,12 @@ impl Contract {
         );
         let mut tx = args.partial_mint_transaction;
         tx.input = input;
+
+        let address = Address::from_str(&destination_chain_config.aave.lending_pool_address)
+            .expect("Invalid address string")
+            .into_array();
+
+        tx.to = Some(address);
 
         let payload = self.hash_payload(&tx);
 
@@ -191,6 +241,12 @@ impl Contract {
         );
         let mut tx = args.partial_transaction;
         tx.input = input;
+
+        let address = Address::from_str(&destination_chain_config.aave.lending_pool_address)
+            .expect("Invalid address string")
+            .into_array();
+
+        tx.to = Some(address);
 
         let payload = self.hash_payload(&tx);
 

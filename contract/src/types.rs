@@ -26,18 +26,20 @@ pub struct AaveConfig {
     pub asset: String,
     pub on_behalf_of: String,
     pub referral_code: u16,
+    pub lending_pool_address: String,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct CCTPConfig {
-    pub value: u128,
+    pub messenger_address: String,
+    pub transmitter_address: String,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct RebalancerConfig {
-    pub value: u128,
+    pub vault_address: String,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema, Debug)]
