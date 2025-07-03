@@ -51,6 +51,37 @@ pub struct Config {
 }
 
 #[repr(u8)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    BorshDeserialize,
+    BorshSerialize,
+    JsonSchema,
+)]
+#[serde(crate = "near_sdk::serde")]
+#[borsh(use_discriminant = true)]
+pub enum AgentActionType {
+    StartedRebalancing = 0,
+    CompletedRebalancing = 1,
+}
+
+impl From<u8> for AgentActionType {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => AgentActionType::StartedRebalancing,
+            1 => AgentActionType::CompletedRebalancing,
+            _ => panic!("Unknown AgentActionType: {}", value),
+        }
+    }
+}
+
+#[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub enum PayloadType {
@@ -80,12 +111,13 @@ impl From<u8> for PayloadType {
 #[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct ActivityLog {
-    pub activity_type: String,
+    pub activity_type: AgentActionType,
     pub source_chain: ChainId,
     pub destination_chain: ChainId,
     pub transactions: Vec<Vec<u8>>,
     pub timestamp: u64,
     pub nonce: u64,
+    pub amount: u128,
 }
 
 // Args Structs

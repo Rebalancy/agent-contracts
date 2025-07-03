@@ -17,7 +17,8 @@ use external::this_contract;
 use types::Worker;
 
 use crate::types::{
-    AaveArgs, ActivityLog, CCTPArgs, ChainConfig, ChainId, Config, PayloadType, RebalancerArgs,
+    AaveArgs, ActivityLog, AgentActionType, CCTPArgs, ChainConfig, ChainId, Config, PayloadType,
+    RebalancerArgs,
 };
 
 mod collateral;
@@ -66,19 +67,83 @@ impl Contract {
 
     // DeFi functions
 
-    /// Invest is an action that means:
-    /// 1. Withdraw from the source chain vault
-    /// 2. Bridge the withdrawn amount to the destination chain
-    /// 3. Supply the bridged amount into Aave on the destination chain
-    ///
-    pub fn invest(
+    // Logica para el timestamp.... de que si ha pasado X tiempo ya no puede continuar con el previous rebalancing? O como empiezo un nuevo proceso?
+    // Podria ser que hago override del ultimo?
+    // Guardar amount
+
+    /*
+    This function is called by the shade agent to start the rebalancing process.
+    It will withdraw the specified amount from the source chain vault and bridge it to the destination chain
+    using CCTP. The function takes the following parameters:
+        - destination_chain: The chain where the funds will be bridged
+        - rebalancer_args: Arguments for the rebalancer transaction
+        - cctp_args: Arguments for the CCTP burn transaction
+        - gas_invest: Gas limit for the rebalancer transaction
+        - gas_cctp_burn: Gas limit for the CCTP burn transaction
+    */
+    pub fn start_rebalance(
         &mut self,
+        source_chain: ChainId,
         destination_chain: ChainId,
         rebalancer_args: RebalancerArgs,
         cctp_args: CCTPArgs,
+        gas_for_rebalancer: u64,
+        gas_for_cctp_burn: u64,
+    ) -> u64 {
+        // TODO: validate that the caller is the shade agent
+
+        let nonce = self.logs_nonce;
+        self.logs_nonce += 1;
+
+        let amount = rebalancer_args.amount;
+
+        self.logs.insert(
+            nonce,
+            ActivityLog {
+                activity_type: AgentActionType::StartedRebalancing,
+                source_chain: self.source_chain,
+                destination_chain,
+                transactions: vec![],
+                timestamp: env::block_timestamp_ms(),
+                nonce,
+                amount,
+            },
+        );
+
+        self.build_invest_rebalancer_tx(
+            destination_chain,
+            rebalancer_args,
+            nonce,
+            gas_for_rebalancer,
+        );
+
+        self.build_cctp_burn_tx(
+            destination_chain,
+            cctp_args.clone(),
+            nonce,
+            gas_for_cctp_burn,
+        );
+
+        env::log_str(&format!("Invest started for nonce {}", nonce));
+        nonce
+    }
+
+    /*
+    Complete the rebalancing process
+    This function is called after the CCTP burn transaction has been confirmed on the source chain.
+    It will mint the bridged amount on the destination chain and supply it into Aave.
+    The function takes the following parameters:
+        - destination_chain: The chain where the funds will be minted and supplied
+        - cctp_args: Arguments for the CCTP mint transaction
+        - aave_args: Arguments for the Aave supply transaction
+        - gas_cctp_mint: Gas limit for the CCTP mint transaction
+        - gas_aave: Gas limit for the Aave supply transaction
+    */
+    pub fn complete_rebalance(
+        &mut self,
+        nonce: u64,
+        cctp_args: CCTPArgs,
         aave_args: AaveArgs,
-        gas_invest: u64,
-        gas_cctp_burn: u64,
         gas_cctp_mint: u64,
         gas_aave: u64,
     ) -> u64 {
@@ -90,25 +155,24 @@ impl Contract {
         self.logs.insert(
             nonce,
             ActivityLog {
-                activity_type: "invest".to_string(),
+                activity_type: AgentActionType::CompletedRebalancing,
                 source_chain: self.source_chain,
                 destination_chain,
                 transactions: vec![],
                 timestamp: env::block_timestamp_ms(),
                 nonce,
+                amount: cctp_args.amount,
             },
         );
 
-        self.build_invest_tx(destination_chain, rebalancer_args, nonce, gas_invest);
-        self.build_cctp_burn_tx(destination_chain, cctp_args.clone(), nonce, gas_cctp_burn);
         self.build_cctp_mint_tx(destination_chain, cctp_args.clone(), nonce, gas_cctp_mint);
-        self.build_aave_tx(destination_chain, aave_args, nonce, gas_aave);
+        self.build_aave_supply_tx(destination_chain, aave_args, nonce, gas_aave);
 
         env::log_str(&format!("Invest started for nonce {}", nonce));
         nonce
     }
 
-    fn build_invest_tx(
+    fn build_invest_rebalancer_tx(
         &self,
         destination_chain: ChainId,
         args: RebalancerArgs,
@@ -126,7 +190,7 @@ impl Contract {
         let mut tx = args.partial_transaction;
         tx.input = input;
 
-        let address = Address::from_str(&destination_chain_config.aave.lending_pool_address)
+        let address = Address::from_str(&destination_chain_config.rebalancer.vault_address)
             .expect("Invalid address string")
             .into_array();
 
@@ -150,10 +214,7 @@ impl Contract {
     ) -> Promise {
         let callback_gas: Gas = Gas::from_tgas(gas);
 
-        let destination_chain_config = self
-            .config
-            .get(&destination_chain)
-            .expect("Chain not configured");
+        let destination_chain_config = self.get_chain_config(&destination_chain);
 
         let input = encoders::cctp::messenger::encode_deposit_for_burn(
             U256::from(args.amount),
@@ -191,10 +252,7 @@ impl Contract {
     ) -> Promise {
         let callback_gas: Gas = Gas::from_tgas(gas);
 
-        let destination_chain_config = self
-            .config
-            .get(&destination_chain)
-            .expect("Chain not configured");
+        let destination_chain_config = self.get_chain_config(&destination_chain);
 
         let input = encoders::cctp::transmitter::encode_receive_message(
             args.message.clone(),
@@ -218,7 +276,7 @@ impl Contract {
         )
     }
 
-    fn build_aave_tx(
+    fn build_aave_supply_tx(
         &self,
         destination_chain: ChainId,
         args: AaveArgs,
@@ -227,10 +285,7 @@ impl Contract {
     ) -> Promise {
         let callback_gas: Gas = Gas::from_tgas(gas);
 
-        let destination_chain_config = self
-            .config
-            .get(&destination_chain)
-            .expect("Chain not configured");
+        let destination_chain_config = self.get_chain_config(&destination_chain);
 
         let input = encoders::aave::lending_pool::encode_supply(
             Address::from_str(&destination_chain_config.aave.asset).expect("Invalid asset address"),
@@ -359,11 +414,17 @@ impl Contract {
         }
     }
 
-    // Private functions
+    // Helper functions
     fn hash_payload(&self, ethereum_tx: &EVMTransaction) -> [u8; 32] {
         env::keccak256(&ethereum_tx.build_for_signing())
             .try_into()
             .expect("Payload must be 32 bytes long")
+    }
+
+    fn get_chain_config(&self, destination_chain: &ChainId) -> &Config {
+        self.config
+            .get(destination_chain)
+            .expect("Chain not configured")
     }
 
     // Agent functions
