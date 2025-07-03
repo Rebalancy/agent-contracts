@@ -4,7 +4,7 @@ use dcap_qvl::verify;
 use hex::{decode, encode};
 use near_sdk::{
     env, near, require,
-    store::{IterableMap, IterableSet},
+    store::{IterableMap, IterableSet, LookupMap},
     AccountId, Gas, NearToken, PanicOnDefault, Promise, PromiseError,
 };
 use omni_transaction::evm::types::Signature;
@@ -17,8 +17,8 @@ use external::this_contract;
 use types::Worker;
 
 use crate::types::{
-    AaveArgs, ActivityLog, AgentActionType, CCTPArgs, ChainConfig, ChainId, Config, PayloadType,
-    RebalancerArgs,
+    AaveArgs, ActiveSession, ActivityLog, AgentActionType, CCTPArgs, ChainConfig, ChainId, Config,
+    PayloadType, Phase, RebalancerArgs,
 };
 
 mod collateral;
@@ -39,9 +39,12 @@ pub struct Contract {
     pub config: IterableMap<ChainId, Config>,
     pub logs: IterableMap<u64, ActivityLog>,
     pub logs_nonce: u64,
+    pub allocations: LookupMap<ChainId, u128>,
+    pub active_session: Option<ActiveSession>,
 }
 
 const PATH: &str = "rebalancer";
+const OPERATIONS_TIMEOUT: u64 = 5 * 60 * 1000; // 5 minutes timeout
 
 #[near]
 impl Contract {
@@ -56,20 +59,16 @@ impl Contract {
             worker_by_account_id: IterableMap::new(b"b"),
             config: IterableMap::new(b"c"),
             source_chain,
-            logs: IterableMap::new(b"d"),
+            allocations: LookupMap::new(b"d"),
+            logs: IterableMap::new(b"e"),
             logs_nonce: 0,
+            active_session: None,
         };
         for cfg in configs {
             contract.config.insert(cfg.chain_id, cfg.config);
         }
         contract
     }
-
-    // DeFi functions
-
-    // Logica para el timestamp.... de que si ha pasado X tiempo ya no puede continuar con el previous rebalancing? O como empiezo un nuevo proceso?
-    // Podria ser que hago override del ultimo?
-    // Guardar amount
 
     /*
     This function is called by the shade agent to start the rebalancing process.
@@ -90,6 +89,8 @@ impl Contract {
         gas_for_rebalancer: u64,
         gas_for_cctp_burn: u64,
     ) -> u64 {
+        self.assert_no_active_session();
+
         // TODO: validate that the caller is the shade agent
 
         let nonce = self.logs_nonce;
@@ -100,15 +101,23 @@ impl Contract {
         self.logs.insert(
             nonce,
             ActivityLog {
-                activity_type: AgentActionType::StartedRebalancing,
-                source_chain: self.source_chain,
+                activity_type: AgentActionType::Rebalance,
+                source_chain: source_chain,
                 destination_chain,
                 transactions: vec![],
                 timestamp: env::block_timestamp_ms(),
                 nonce,
-                amount,
+                expected_amount: amount,
+                actual_amount: None,
             },
         );
+
+        self.active_session = Some(ActiveSession {
+            nonce,
+            action_type: AgentActionType::Rebalance,
+            started_at: env::block_timestamp_ms(),
+            current_phase: Phase::AwaitingStartSignatures,
+        });
 
         self.build_invest_rebalancer_tx(
             destination_chain,
@@ -124,7 +133,10 @@ impl Contract {
             gas_for_cctp_burn,
         );
 
-        env::log_str(&format!("Invest started for nonce {}", nonce));
+        env::log_str(&format!(
+            "Rebalance start-phase initiated (nonce {})",
+            nonce
+        ));
         nonce
     }
 
@@ -141,35 +153,66 @@ impl Contract {
     */
     pub fn complete_rebalance(
         &mut self,
-        nonce: u64,
         cctp_args: CCTPArgs,
         aave_args: AaveArgs,
         gas_cctp_mint: u64,
         gas_aave: u64,
-    ) -> u64 {
+    ) {
         // TODO: validate that the caller is the shade agent
 
-        let nonce = self.logs_nonce;
-        self.logs_nonce += 1;
+        let session = self.active_session.as_mut().expect("No active session");
 
-        self.logs.insert(
-            nonce,
-            ActivityLog {
-                activity_type: AgentActionType::CompletedRebalancing,
-                source_chain: self.source_chain,
-                destination_chain,
-                transactions: vec![],
-                timestamp: env::block_timestamp_ms(),
-                nonce,
-                amount: cctp_args.amount,
-            },
+        require!(
+            session.action_type == AgentActionType::Rebalance,
+            "Invalid session"
+        );
+        require!(
+            session.current_phase == Phase::StartCompleted,
+            "Start phase not completed"
         );
 
-        self.build_cctp_mint_tx(destination_chain, cctp_args.clone(), nonce, gas_cctp_mint);
-        self.build_aave_supply_tx(destination_chain, aave_args, nonce, gas_aave);
+        session.current_phase = Phase::AwaitingCompleteSignatures;
+        let nonce = session.nonce;
+        let log = self.logs.get(&nonce).expect("Log not found").clone();
 
-        env::log_str(&format!("Invest started for nonce {}", nonce));
-        nonce
+        self.build_cctp_mint_tx(
+            log.destination_chain.clone(),
+            cctp_args.clone(),
+            nonce,
+            gas_cctp_mint,
+        );
+
+        let aave_args_amount = aave_args.amount as u128;
+
+        self.build_aave_supply_tx(log.destination_chain, aave_args, nonce, gas_aave);
+
+        // Update allocations
+        let current_destination_chain_allocation = self
+            .allocations
+            .get(&log.destination_chain)
+            .cloned()
+            .unwrap_or(0);
+
+        self.allocations.insert(
+            log.destination_chain.clone(),
+            current_destination_chain_allocation + aave_args_amount,
+        );
+
+        let current_source_chain_destination = self
+            .allocations
+            .get(&log.source_chain)
+            .cloned()
+            .unwrap_or(0);
+
+        self.allocations.insert(
+            log.source_chain.clone(),
+            current_source_chain_destination.saturating_sub(aave_args_amount),
+        );
+
+        env::log_str(&format!(
+            "Rebalance complete-phase initiated (nonce {})",
+            nonce
+        ));
     }
 
     fn build_invest_rebalancer_tx(
@@ -181,10 +224,7 @@ impl Contract {
     ) -> Promise {
         let callback_gas: Gas = Gas::from_tgas(gas);
 
-        let destination_chain_config = self
-            .config
-            .get(&destination_chain)
-            .expect("Chain not configured");
+        let destination_chain_config = self.get_chain_config(&destination_chain);
 
         let input = encoders::rebalancer::vault::encode_invest(args.amount);
         let mut tx = args.partial_transaction;
@@ -228,7 +268,7 @@ impl Contract {
         let mut tx = args.partial_burn_transaction;
         tx.input = input;
 
-        let address = Address::from_str(&destination_chain_config.aave.lending_pool_address)
+        let address = Address::from_str(&destination_chain_config.cctp.messenger_address)
             .expect("Invalid address string")
             .into_array();
 
@@ -261,7 +301,7 @@ impl Contract {
         let mut tx = args.partial_mint_transaction;
         tx.input = input;
 
-        let address = Address::from_str(&destination_chain_config.aave.lending_pool_address)
+        let address = Address::from_str(&destination_chain_config.cctp.transmitter_address)
             .expect("Invalid address string")
             .into_array();
 
@@ -320,6 +360,23 @@ impl Contract {
         tx_type: u8,
         ethereum_tx: EVMTransaction,
     ) -> Vec<u8> {
+        // First, extract needed session info and drop mutable borrow
+        let (initial_phase, session_nonce) = {
+            let session = self.active_session.as_ref().expect("No active session");
+            (session.current_phase.clone(), session.nonce)
+        };
+        require!(session_nonce == nonce, "Nonce mismatch");
+        // Validate expected tx_type for this phase
+        let expected = match initial_phase {
+            Phase::AwaitingStartSignatures => Self::expected_start_txs(),
+            Phase::AwaitingCompleteSignatures => Self::expected_complete_txs(),
+            _ => &[],
+        };
+        require!(
+            expected.iter().any(|pt| *pt as u8 == tx_type),
+            "Unexpected tx_type"
+        );
+
         match call_result {
             Ok(signature_response) => {
                 env::log_str(&format!(
@@ -405,6 +462,22 @@ impl Contract {
                 log.transactions.push(payload.clone());
                 self.logs.insert(nonce, log);
 
+                // Phase advancement
+                // Now reborrow mutably to advance state if needed
+                if initial_phase == Phase::AwaitingStartSignatures
+                    && self.is_phase_fulfilled(Phase::AwaitingStartSignatures)
+                {
+                    let session = self.active_session.as_mut().unwrap();
+                    session.current_phase = Phase::StartCompleted;
+                    env::log_str("Start phase completed");
+                } else if initial_phase == Phase::AwaitingCompleteSignatures
+                    && self.is_phase_fulfilled(Phase::AwaitingCompleteSignatures)
+                {
+                    // final completion: clear session
+                    self.active_session = None;
+                    env::log_str("Rebalance finished and cleared");
+                }
+
                 payload
             }
             Err(error) => {
@@ -425,6 +498,48 @@ impl Contract {
         self.config
             .get(destination_chain)
             .expect("Chain not configured")
+    }
+
+    fn clear_if_timed_out(&mut self) {
+        if let Some(session) = &self.active_session {
+            if env::block_timestamp_ms() - session.started_at > OPERATIONS_TIMEOUT {
+                self.logs.remove(&session.nonce);
+                self.active_session = None;
+                env::log_str("Session timed out and cleared");
+            }
+        }
+    }
+
+    fn assert_no_active_session(&mut self) {
+        self.clear_if_timed_out();
+        require!(self.active_session.is_none(), "Another action in progress");
+    }
+
+    pub fn assert_agent_is_calling(&self) {
+        // TODO: Implement agent validation logic
+    }
+
+    fn expected_start_txs() -> &'static [PayloadType] {
+        &[PayloadType::RebalancerInvest, PayloadType::CCTPBurn]
+    }
+
+    fn expected_complete_txs() -> &'static [PayloadType] {
+        &[PayloadType::CCTPMint, PayloadType::AaveSupply]
+    }
+
+    fn is_phase_fulfilled(&self, phase: Phase) -> bool {
+        if let Some(session) = &self.active_session {
+            let expected = match phase {
+                Phase::AwaitingStartSignatures => Self::expected_start_txs(),
+                Phase::AwaitingCompleteSignatures => Self::expected_complete_txs(),
+                _ => return false,
+            };
+            let log = self.logs.get(&session.nonce).expect("Log not found");
+            let signed: Vec<u8> = log.transactions.iter().map(|tx| tx[0]).collect();
+            expected.iter().all(|pt| signed.contains(&(*pt as u8)))
+        } else {
+            false
+        }
     }
 
     // Agent functions
