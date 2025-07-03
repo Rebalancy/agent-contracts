@@ -67,15 +67,43 @@ pub struct Config {
 #[serde(crate = "near_sdk::serde")]
 #[borsh(use_discriminant = true)]
 pub enum AgentActionType {
-    StartedRebalancing = 0,
-    CompletedRebalancing = 1,
+    Rebalance,
+    Harvest,
+}
+
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    BorshDeserialize,
+    BorshSerialize,
+)]
+#[serde(crate = "near_sdk::serde")]
+pub enum Phase {
+    AwaitingStartSignatures,
+    StartCompleted,
+    AwaitingCompleteSignatures,
+    Finished,
+}
+impl From<AgentActionType> for u8 {
+    fn from(action_type: AgentActionType) -> Self {
+        match action_type {
+            AgentActionType::Rebalance => 0,
+            AgentActionType::Harvest => 1,
+        }
+    }
 }
 
 impl From<u8> for AgentActionType {
     fn from(value: u8) -> Self {
         match value {
-            0 => AgentActionType::StartedRebalancing,
-            1 => AgentActionType::CompletedRebalancing,
+            0 => AgentActionType::Rebalance,
+            1 => AgentActionType::Harvest,
             _ => panic!("Unknown AgentActionType: {}", value),
         }
     }
@@ -89,8 +117,8 @@ pub enum PayloadType {
     AaveWithdraw = 1,
     CCTPBurn = 2,
     CCTPMint = 3,
-    RebalancerInvest = 4,
-    RebalancerRebalance = 5,
+    RebalancerHarvest = 4,
+    RebalancerInvest = 5,
 }
 
 impl From<u8> for PayloadType {
@@ -100,27 +128,26 @@ impl From<u8> for PayloadType {
             1 => PayloadType::AaveWithdraw,
             2 => PayloadType::CCTPBurn,
             3 => PayloadType::CCTPMint,
-            4 => PayloadType::RebalancerInvest,
-            5 => PayloadType::RebalancerRebalance,
+            4 => PayloadType::RebalancerHarvest,
+            5 => PayloadType::RebalancerInvest,
             _ => panic!("Unknown PayloadType: {}", value),
         }
     }
 }
 
-// Activity Structs
 #[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct ActivityLog {
     pub activity_type: AgentActionType,
     pub source_chain: ChainId,
     pub destination_chain: ChainId,
-    pub transactions: Vec<Vec<u8>>,
     pub timestamp: u64,
     pub nonce: u64,
-    pub amount: u128,
+    pub expected_amount: u128,
+    pub actual_amount: Option<u128>,
+    pub transactions: Vec<Vec<u8>>,
 }
 
-// Args Structs
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AaveArgs {
@@ -151,4 +178,13 @@ pub struct RebalancerArgs {
     pub source_chain: ChainId,
     pub destination_chain: ChainId,
     pub partial_transaction: EVMTransaction,
+}
+
+#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, JsonSchema)]
+#[serde(crate = "near_sdk::serde")]
+pub struct ActiveSession {
+    pub nonce: u64,
+    pub action_type: AgentActionType,
+    pub started_at: u64,
+    pub current_phase: Phase,
 }
