@@ -130,10 +130,13 @@ async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
         access_list: vec![],
     };
 
-    let invest_args = json!({
+    let start_rebalancer_args = json!({
+        "source_chain": BASE_CHAIN_ID_SEPOLIA,
         "destination_chain": ETHEREUM_CHAIN_ID_SEPOLIA,
-        "aave_args": {
+        "rebalancer_args": {
             "amount": USDC_AMOUNT,
+            "source_chain": BASE_CHAIN_ID_SEPOLIA,
+            "destination_chain": ETHEREUM_CHAIN_ID_SEPOLIA,
             "partial_transaction": empty_tx
         },
         "cctp_args": {
@@ -149,28 +152,87 @@ async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
             "partial_burn_transaction": empty_tx,
             "partial_mint_transaction": empty_tx
         },
-        "rebalancer_args": {
-            "amount": USDC_AMOUNT,
-            "source_chain": BASE_CHAIN_ID_SEPOLIA,
-            "destination_chain": ETHEREUM_CHAIN_ID_SEPOLIA,
-            "partial_transaction": empty_tx
-        },
-        "gas_invest": 10,
-        "gas_cctp_burn": 10,
-        "gas_cctp_mint": 40,
-        "gas_aave": 20,
+        "gas_for_rebalancer": 10,
+        "gas_for_cctp_burn": 10,
     });
 
-    let invest_result = friendly_json_rpc_client
+    let start_rebalance_result = friendly_json_rpc_client
         .send_action(FunctionCallAction {
-            method_name: "invest".to_string(),
-            args: invest_args.to_string().into_bytes(), // Convert directly to Vec<u8>
+            method_name: "start_rebalance".to_string(),
+            args: start_rebalancer_args.to_string().into_bytes(), // Convert directly to Vec<u8>
             gas: 300000000000000,
             deposit: 0,
         })
         .await?;
 
-    println!("Invest call result: {:?}", invest_result);
+    println!("Start rebalance result: {:?}", start_rebalance_result);
+
+    let complete_rebalancer_args = json!({
+        "cctp_args": {
+            "amount": USDC_AMOUNT,
+            "destination_domain": ETHEREUM_DOMAIN,
+            "mint_recipient": address_to_bytes32_string(AGENT_ADDRESS),
+            "burn_token": USDC_BASE_SEPOLIA,
+            "destination_caller": address_to_bytes32_string(AGENT_ADDRESS),
+            "max_fee": to_usdc_units(0.99),
+            "min_finality_threshold": MIN_FINALITY_THRESHOLD,
+            "message": [],
+            "attestation": [],
+            "partial_burn_transaction": empty_tx,
+            "partial_mint_transaction": empty_tx
+        },
+        "aave_args": {
+            "amount": USDC_AMOUNT,
+            "partial_transaction": empty_tx
+        },
+        "gas_cctp_mint": 10,
+        "gas_aave": 10,
+    });
+
+    let complete_rebalancer_result = friendly_json_rpc_client
+        .send_action(FunctionCallAction {
+            method_name: "invest".to_string(),
+            args: complete_rebalancer_args.to_string().into_bytes(), // Convert directly to Vec<u8>
+            gas: 300000000000000,
+            deposit: 0,
+        })
+        .await?;
+
+    println!(
+        "Complete rebalance result: {:?}",
+        complete_rebalancer_result
+    );
+
+    // let invest_args = json!({
+    //     "destination_chain": ETHEREUM_CHAIN_ID_SEPOLIA,
+    //     "aave_args": {
+    //         "amount": USDC_AMOUNT,
+    //         "partial_transaction": empty_tx
+    //     },
+    //     "cctp_args": {
+    //         "amount": USDC_AMOUNT,
+    //         "destination_domain": ETHEREUM_DOMAIN,
+    //         "mint_recipient": address_to_bytes32_string(AGENT_ADDRESS),
+    //         "burn_token": USDC_BASE_SEPOLIA,
+    //         "destination_caller": address_to_bytes32_string(AGENT_ADDRESS),
+    //         "max_fee": to_usdc_units(0.99),
+    //         "min_finality_threshold": MIN_FINALITY_THRESHOLD,
+    //         "message": [],
+    //         "attestation": [],
+    //         "partial_burn_transaction": empty_tx,
+    //         "partial_mint_transaction": empty_tx
+    //     },
+    //     "rebalancer_args": {
+    //         "amount": USDC_AMOUNT,
+    //         "source_chain": BASE_CHAIN_ID_SEPOLIA,
+    //         "destination_chain": ETHEREUM_CHAIN_ID_SEPOLIA,
+    //         "partial_transaction": empty_tx
+    //     },
+    //     "gas_invest": 10,
+    //     "gas_cctp_burn": 10,
+    //     "gas_cctp_mint": 40,
+    //     "gas_aave": 20,
+    // });
 
     Ok(())
 }
@@ -257,13 +319,14 @@ async fn get_signed_transactions() -> Result<(), Box<dyn std::error::Error>> {
         .get(&PayloadType::RebalancerInvest)
         .expect("RebalancerInvest payload not found");
 
-    match provider.send_raw_transaction(rebalancer_tx_payload).await {
-        Ok(tx_hash) => {
-            println!("Transaction sent successfully. Hash: {:?}", tx_hash);
-        }
-        Err(err) => {
-            eprintln!("Failed to send transaction: {err}");
-        }
-    }
+    // TODO: Uncomment this to test
+    // match provider.send_raw_transaction(rebalancer_tx_payload).await {
+    //     Ok(tx_hash) => {
+    //         println!("Transaction sent successfully. Hash: {:?}", tx_hash);
+    //     }
+    //     Err(err) => {
+    //         eprintln!("Failed to send transaction: {err}");
+    //     }
+    // }
     Ok(())
 }
