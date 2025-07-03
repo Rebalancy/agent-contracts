@@ -1,4 +1,4 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
 use near_sdk::near;
 use near_sdk::serde::{Deserialize, Serialize};
 use omni_transaction::evm::EVMTransaction;
@@ -63,6 +63,7 @@ pub struct Config {
     BorshDeserialize,
     BorshSerialize,
     JsonSchema,
+    BorshSchema,
 )]
 #[serde(crate = "near_sdk::serde")]
 #[borsh(use_discriminant = true)]
@@ -82,6 +83,7 @@ pub enum AgentActionType {
     JsonSchema,
     BorshDeserialize,
     BorshSerialize,
+    BorshSchema,
 )]
 #[serde(crate = "near_sdk::serde")]
 pub enum Phase {
@@ -180,7 +182,9 @@ pub struct RebalancerArgs {
     pub partial_transaction: EVMTransaction,
 }
 
-#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, JsonSchema, BorshSchema,
+)]
 #[serde(crate = "near_sdk::serde")]
 pub struct ActiveSession {
     pub nonce: u64,
