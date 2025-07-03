@@ -1,4 +1,4 @@
-use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
+use near_sdk::borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
 use near_sdk::near;
 use near_sdk::serde::{Deserialize, Serialize};
 use omni_transaction::evm::EVMTransaction;
