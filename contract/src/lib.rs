@@ -658,3 +658,64 @@ impl Contract {
             .collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::types::{AaveConfig, CCTPConfig, RebalancerConfig};
+
+    use super::*;
+    use near_sdk::{test_utils::VMContextBuilder, testing_env, AccountId};
+
+    const ONE_NEAR: NearToken = NearToken::from_near(1);
+    const OWNER: &str = "owner.testnet";
+    const _WORKER: &str = "worker.testnet";
+
+    fn set_context(predecessor: &str, amount: NearToken) {
+        let mut builder = VMContextBuilder::new();
+        builder.predecessor_account_id(predecessor.parse().unwrap());
+        builder.attached_deposit(amount);
+
+        testing_env!(builder.build());
+    }
+
+    #[test]
+    fn test_init() {
+        set_context(OWNER, ONE_NEAR);
+        let source_chain = ChainId::from_str("1").unwrap();
+        let configs = vec![ChainConfig {
+            chain_id: ChainId::from_str("2").unwrap(),
+            config: Config {
+                rebalancer: RebalancerConfig {
+                    vault_address: "0xVaultAddress".to_string(),
+                },
+                cctp: CCTPConfig {
+                    messenger_address: "0xMessengerAddress".to_string(),
+                    transmitter_address: "0xTransmitterAddress".to_string(),
+                },
+                aave: AaveConfig {
+                    asset: "0xAaveAssetAddress".to_string(),
+                    lending_pool_address: "0xLendingPoolAddress".to_string(),
+                    on_behalf_of: "0xOnBehalfOfAddress".to_string(),
+                    referral_code: 0,
+                },
+            },
+        }];
+
+        let contract = Contract::init(source_chain, configs);
+
+        assert_eq!(contract.owner_id, AccountId::from_str(OWNER).unwrap());
+        assert_eq!(contract.source_chain, source_chain);
+        assert_eq!(contract.supported_chains.len(), 1);
+        assert_eq!(
+            contract.supported_chains[0],
+            ChainId::from_str("2").unwrap()
+        );
+        assert!(contract.active_session.is_none());
+        assert!(contract.approved_codehashes.is_empty());
+        assert!(contract.worker_by_account_id.is_empty());
+        assert!(contract
+            .config
+            .contains_key(&ChainId::from_str("2").unwrap()));
+        assert!(contract.logs.is_empty());
+    }
+}
