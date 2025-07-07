@@ -12,6 +12,7 @@ pub struct NearAccount {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum Account {
     Near(NearAccount),
 }
