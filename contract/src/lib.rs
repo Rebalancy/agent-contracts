@@ -36,10 +36,11 @@ pub struct Contract {
     source_chain: ChainId,
     approved_codehashes: IterableSet<String>,
     worker_by_account_id: IterableMap<AccountId, Worker>,
-    pub config: IterableMap<ChainId, Config>,
+    pub config: LookupMap<ChainId, Config>,
     pub logs: IterableMap<u64, ActivityLog>,
     pub logs_nonce: u64,
     pub allocations: LookupMap<ChainId, u128>,
+    pub supported_chains: Vec<ChainId>,
     pub active_session: Option<ActiveSession>,
 }
 
@@ -57,17 +58,28 @@ impl Contract {
             owner_id,
             approved_codehashes: IterableSet::new(b"a"),
             worker_by_account_id: IterableMap::new(b"b"),
-            config: IterableMap::new(b"c"),
+            config: LookupMap::new(b"c"),
             source_chain,
             allocations: LookupMap::new(b"d"),
             logs: IterableMap::new(b"e"),
             logs_nonce: 0,
             active_session: None,
+            supported_chains: configs.iter().map(|cfg| cfg.chain_id.clone()).collect(),
         };
         for cfg in configs {
             contract.config.insert(cfg.chain_id, cfg.config);
         }
         contract
+    }
+
+    pub fn add_supported_chain(&mut self, new_chain: ChainConfig) {
+        self.require_owner();
+        require!(
+            !self.supported_chains.contains(&new_chain.chain_id),
+            "Chain already supported"
+        );
+        self.supported_chains.push(new_chain.chain_id.clone());
+        self.config.insert(new_chain.chain_id, new_chain.config);
     }
 
     /*
@@ -92,6 +104,7 @@ impl Contract {
         self.assert_no_active_session();
 
         // TODO: validate that the caller is the shade agent
+        // TODO: validate the source and destination chains are supported
 
         let nonce = self.logs_nonce;
         self.logs_nonce += 1;
@@ -494,7 +507,7 @@ impl Contract {
             .expect("Payload must be 32 bytes long")
     }
 
-    fn get_chain_config(&self, destination_chain: &ChainId) -> &Config {
+    pub fn get_chain_config(&self, destination_chain: &ChainId) -> &Config {
         self.config
             .get(destination_chain)
             .expect("Chain not configured")
@@ -516,7 +529,7 @@ impl Contract {
     }
 
     pub fn assert_agent_is_calling(&self) {
-        // TODO: Implement agent validation logic
+        self.require_worker_has_valid_codehash();
     }
 
     fn expected_start_txs() -> &'static [PayloadType] {
@@ -577,7 +590,7 @@ impl Contract {
         require!(self.approved_codehashes.contains(codehash));
     }
 
-    pub fn require_worker_has_valid_codehash(&mut self) {
+    pub fn require_worker_has_valid_codehash(&self) {
         let worker = self.get_worker(env::predecessor_account_id());
         require!(self.approved_codehashes.contains(&worker.codehash));
     }
@@ -601,8 +614,8 @@ impl Contract {
     pub fn get_worker(&self, account_id: AccountId) -> Worker {
         self.worker_by_account_id
             .get(&account_id)
-            .unwrap()
-            .to_owned()
+            .cloned()
+            .expect("Worker not registered")
     }
 
     pub fn get_latest_logs(&self, count: u64) -> Vec<ActivityLog> {
@@ -622,5 +635,26 @@ impl Contract {
         }
 
         logs
+    }
+
+    pub fn get_allocations(&self) -> Vec<(ChainId, u128)> {
+        self.supported_chains
+            .iter()
+            .map(|chain_id| {
+                let allocation = self.allocations.get(chain_id).cloned().unwrap_or(0);
+                (chain_id.clone(), allocation)
+            })
+            .collect()
+    }
+
+    pub fn get_all_configs(&self) -> Vec<(ChainId, Config)> {
+        self.supported_chains
+            .iter()
+            .filter_map(|chain_id| {
+                self.config
+                    .get(chain_id)
+                    .map(|cfg| (chain_id.clone(), cfg.clone()))
+            })
+            .collect()
     }
 }
