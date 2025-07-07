@@ -31,7 +31,6 @@ const TRANSMITTER_ADDRESS_ETHEREUM_SEPOLIA: &str = "0xe737e5cebeeba77efe34d4aa09
 const VAULT_ADDRESS_BASE_SEPOLIA: &str = "0x565FDe3703d1bCc7Cbe161488ee1498ae429A145"; // Rebalancer Vault on Base Sepolia
 const ZERO_ADDRESS: &str = "0x0000000000000000000000000000000000000000";
 
-#[tokio::test]
 async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
     let deployer_account = get_user_account_info_from_file(None)?;
 
@@ -214,7 +213,6 @@ fn address_to_bytes32_string(addr: &str) -> String {
     padded
 }
 
-#[tokio::test]
 async fn test_get_activity() -> Result<(), Box<dyn std::error::Error>> {
     let deployer_account = get_user_account_info_from_file(None)?;
 
@@ -235,8 +233,7 @@ async fn test_get_activity() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-#[tokio::test]
-async fn get_signed_transactions() -> Result<(), Box<dyn std::error::Error>> {
+async fn test_get_signed_transactions() -> Result<(), Box<dyn std::error::Error>> {
     let deployer_account = get_user_account_info_from_file(None)?;
 
     let friendly_json_rpc_client =
@@ -299,8 +296,7 @@ async fn get_signed_transactions() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-#[tokio::test]
-async fn get_allocations() -> Result<(), Box<dyn std::error::Error>> {
+async fn test_get_allocations() -> Result<(), Box<dyn std::error::Error>> {
     let deployer_account = get_user_account_info_from_file(None)?;
 
     let friendly_json_rpc_client =
@@ -312,5 +308,15 @@ async fn get_allocations() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Allocations: {:?}", allocations);
 
+    Ok(())
+}
+
+#[tokio::test]
+async fn full_flow_test() -> Result<(), Box<dyn std::error::Error>> {
+    test_invest().await?;
+    test_get_activity().await?;
+    test_get_signed_transactions().await?;
+    test_get_allocations().await?;
+    println!("Full flow test completed successfully.");
     Ok(())
 }
