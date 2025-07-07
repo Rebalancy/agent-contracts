@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use shade_agent_contract::types::ActivityLog;
+use shade_agent_contract::types::{ActivityLog, ChainId};
 
 pub trait ParseResult: Sized {
     fn parse(result_str: String) -> Result<Self, Box<dyn Error>>;
@@ -57,5 +57,22 @@ impl ParseResult for Vec<ActivityLog> {
     fn parse(result_str: String) -> Result<Self, Box<dyn Error>> {
         let logs: Vec<ActivityLog> = serde_json::from_str(&result_str)?;
         Ok(logs)
+    }
+}
+
+impl ParseResult for Vec<(ChainId, u128)> {
+    fn parse(result_str: String) -> Result<Self, Box<dyn Error>> {
+        let raw: Vec<(ChainId, String)> = serde_json::from_str(&result_str)?;
+
+        // Convertir el segundo elemento (String) a u128
+        let parsed = raw
+            .into_iter()
+            .map(|(chain_id, amount_str)| {
+                let amount = amount_str.parse::<u128>()?;
+                Ok((chain_id, amount))
+            })
+            .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
+
+        Ok(parsed)
     }
 }

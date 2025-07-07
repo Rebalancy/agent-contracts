@@ -1,6 +1,6 @@
 use alloy::providers::{ext::AnvilApi, Provider, ProviderBuilder};
 use near_primitives::action::FunctionCallAction;
-use omni_transaction::evm::{utils::parse_eth_address, EVMTransaction};
+use omni_transaction::evm::EVMTransaction;
 use serde_json::json;
 
 mod utils;
@@ -10,13 +10,13 @@ use crate::utils::conversion::to_usdc_units;
 use crate::utils::friendly_json_rpc_client::near_network_config::NearNetworkConfig;
 use crate::utils::friendly_json_rpc_client::FriendlyNearJsonRpcClient;
 
-use shade_agent_contract::types::{ActivityLog, PayloadType};
+use shade_agent_contract::types::{ActivityLog, ChainId, PayloadType};
 use std::collections::HashMap;
 
 const BASE_CHAIN_ID_SEPOLIA: u64 = 84532;
 const ETHEREUM_CHAIN_ID_SEPOLIA: u64 = 111155111;
-const BASE_DOMAIN: &str = "6";
-const ETHEREUM_DOMAIN: &str = "0";
+const BASE_DOMAIN: u32 = 6;
+const ETHEREUM_DOMAIN: u32 = 0;
 const USDC_AMOUNT: u64 = 1;
 const MIN_FINALITY_THRESHOLD: u64 = 1000;
 const AGENT_ADDRESS: &str = "0xD5aC5A88dd3F1FE5dcC3ac97B512Faeb48d06AF0";
@@ -32,7 +32,7 @@ const VAULT_ADDRESS_BASE_SEPOLIA: &str = "0x565FDe3703d1bCc7Cbe161488ee1498ae429
 const ZERO_ADDRESS: &str = "0x0000000000000000000000000000000000000000";
 
 #[tokio::test]
-#[ignore] // Ignore this test by default, as it requires a specific setup
+#[ignore]
 async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
     let deployer_account = get_user_account_info_from_file(None)?;
 
@@ -191,7 +191,7 @@ async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
 
     let complete_rebalancer_result = friendly_json_rpc_client
         .send_action(FunctionCallAction {
-            method_name: "invest".to_string(),
+            method_name: "complete_rebalance".to_string(),
             args: complete_rebalancer_args.to_string().into_bytes(), // Convert directly to Vec<u8>
             gas: 300000000000000,
             deposit: 0,
@@ -202,37 +202,6 @@ async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
         "Complete rebalance result: {:?}",
         complete_rebalancer_result
     );
-
-    // let invest_args = json!({
-    //     "destination_chain": ETHEREUM_CHAIN_ID_SEPOLIA,
-    //     "aave_args": {
-    //         "amount": USDC_AMOUNT,
-    //         "partial_transaction": empty_tx
-    //     },
-    //     "cctp_args": {
-    //         "amount": USDC_AMOUNT,
-    //         "destination_domain": ETHEREUM_DOMAIN,
-    //         "mint_recipient": address_to_bytes32_string(AGENT_ADDRESS),
-    //         "burn_token": USDC_BASE_SEPOLIA,
-    //         "destination_caller": address_to_bytes32_string(AGENT_ADDRESS),
-    //         "max_fee": to_usdc_units(0.99),
-    //         "min_finality_threshold": MIN_FINALITY_THRESHOLD,
-    //         "message": [],
-    //         "attestation": [],
-    //         "partial_burn_transaction": empty_tx,
-    //         "partial_mint_transaction": empty_tx
-    //     },
-    //     "rebalancer_args": {
-    //         "amount": USDC_AMOUNT,
-    //         "source_chain": BASE_CHAIN_ID_SEPOLIA,
-    //         "destination_chain": ETHEREUM_CHAIN_ID_SEPOLIA,
-    //         "partial_transaction": empty_tx
-    //     },
-    //     "gas_invest": 10,
-    //     "gas_cctp_burn": 10,
-    //     "gas_cctp_mint": 40,
-    //     "gas_aave": 20,
-    // });
 
     Ok(())
 }
@@ -328,5 +297,21 @@ async fn get_signed_transactions() -> Result<(), Box<dyn std::error::Error>> {
     //         eprintln!("Failed to send transaction: {err}");
     //     }
     // }
+    Ok(())
+}
+
+#[tokio::test]
+async fn get_allocations() -> Result<(), Box<dyn std::error::Error>> {
+    let deployer_account = get_user_account_info_from_file(None)?;
+
+    let friendly_json_rpc_client =
+        FriendlyNearJsonRpcClient::new(NearNetworkConfig::Testnet, deployer_account.clone());
+
+    let allocations = friendly_json_rpc_client
+        .call_contract::<Vec<(ChainId, u128)>>("get_allocations", json!({}))
+        .await?;
+
+    println!("Allocations: {:?}", allocations);
+
     Ok(())
 }
