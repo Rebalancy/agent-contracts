@@ -32,7 +32,6 @@ const VAULT_ADDRESS_BASE_SEPOLIA: &str = "0x565FDe3703d1bCc7Cbe161488ee1498ae429
 const ZERO_ADDRESS: &str = "0x0000000000000000000000000000000000000000";
 
 #[tokio::test]
-#[ignore]
 async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
     let deployer_account = get_user_account_info_from_file(None)?;
 
