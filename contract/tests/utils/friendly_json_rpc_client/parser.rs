@@ -62,17 +62,7 @@ impl ParseResult for Vec<ActivityLog> {
 
 impl ParseResult for Vec<(ChainId, u128)> {
     fn parse(result_str: String) -> Result<Self, Box<dyn Error>> {
-        let raw: Vec<(ChainId, String)> = serde_json::from_str(&result_str)?;
-
-        // Convertir el segundo elemento (String) a u128
-        let parsed = raw
-            .into_iter()
-            .map(|(chain_id, amount_str)| {
-                let amount = amount_str.parse::<u128>()?;
-                Ok((chain_id, amount))
-            })
-            .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
-
-        Ok(parsed)
+        let raw: Vec<(ChainId, u64)> = serde_json::from_str(&result_str)?;
+        Ok(raw.into_iter().map(|(id, amt)| (id, amt as u128)).collect())
     }
 }
