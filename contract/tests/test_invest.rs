@@ -109,7 +109,7 @@ async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(info.fork_config.fork_url, Some(rpc_url.to_string()));
 
     // Prepare Ethereum transaction
-    let chain_id: u64 = 1;
+    let chain_id: u64 = 1; // TODO: Fix for the correct chain ID
     let nonce: u64 = 0x42; // TODO: this has to be dynamic....
     let gas_limit = 44386;
     let max_fee_per_gas = 0x4a817c800;
@@ -270,7 +270,8 @@ async fn test_get_signed_transactions() -> Result<(), Box<dyn std::error::Error>
     }
     // Spin up a forked Anvil node. (Ensure `anvil` is available in $PATH)
     let rpc_url = "https://base-sepolia.g.alchemy.com/v2/JmXSjhNebn2v_jTEgLoqKyf4q_H8EwIn";
-    let provider = ProviderBuilder::new().on_anvil_with_config(|anvil| anvil.fork(rpc_url));
+    let provider = ProviderBuilder::new()
+        .on_anvil_with_config(|anvil| anvil.fork(rpc_url).chain_id(BASE_CHAIN_ID_SEPOLIA));
 
     // Get node info using the Anvil API.
     let info = provider.anvil_node_info().await?;
@@ -284,15 +285,14 @@ async fn test_get_signed_transactions() -> Result<(), Box<dyn std::error::Error>
         .get(&PayloadType::RebalancerInvest)
         .expect("RebalancerInvest payload not found");
 
-    // TODO: Uncomment this to test
-    // match provider.send_raw_transaction(rebalancer_tx_payload).await {
-    //     Ok(tx_hash) => {
-    //         println!("Transaction sent successfully. Hash: {:?}", tx_hash);
-    //     }
-    //     Err(err) => {
-    //         eprintln!("Failed to send transaction: {err}");
-    //     }
-    // }
+    match provider.send_raw_transaction(rebalancer_tx_payload).await {
+        Ok(tx_hash) => {
+            println!("Transaction sent successfully. Hash: {:?}", tx_hash);
+        }
+        Err(err) => {
+            eprintln!("Failed to send transaction: {err}");
+        }
+    }
     Ok(())
 }
 
@@ -315,8 +315,8 @@ async fn test_get_allocations() -> Result<(), Box<dyn std::error::Error>> {
 async fn full_flow_test() -> Result<(), Box<dyn std::error::Error>> {
     test_invest().await?;
     test_get_activity().await?;
-    test_get_signed_transactions().await?;
     test_get_allocations().await?;
+    test_get_signed_transactions().await?;
     println!("Full flow test completed successfully.");
     Ok(())
 }
