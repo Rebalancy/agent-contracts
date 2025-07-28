@@ -657,6 +657,10 @@ impl Contract {
             })
             .collect()
     }
+
+    pub fn get_source_chain(&self) -> ChainId {
+        self.source_chain.clone()
+    }
 }
 
 #[cfg(test)]
