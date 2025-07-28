@@ -94,6 +94,7 @@ async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Init result: {:?}", init_result);
 
+    // TODO: Get derived account address
     // TODO: Use this to get nonces
 
     // Spin up a forked Anvil node. (Ensure `anvil` is available in $PATH)
