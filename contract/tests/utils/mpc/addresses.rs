@@ -6,9 +6,9 @@ use k256::{
     AffinePoint, Scalar, Secp256k1, U256,
 };
 use near_sdk::AccountId;
+use sha3::Digest;
 use sha3::Sha3_256;
 use tiny_keccak::{Hasher, Keccak};
-
 pub type PublicKey = <Secp256k1 as CurveArithmetic>::AffinePoint;
 
 trait ScalarExt: Sized {
