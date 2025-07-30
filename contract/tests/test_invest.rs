@@ -16,20 +16,34 @@ use std::collections::HashMap;
 const BASE_CHAIN_ID_SEPOLIA: u64 = 84532;
 const ETHEREUM_CHAIN_ID_SEPOLIA: u64 = 111155111;
 const BASE_DOMAIN: u32 = 6;
+const OPTIMISM_CHAIN_ID_SEPOLIA: u64 = 11155420;
+const OPTIMISM_DOMAIN: u32 = 2;
+const ARBITRUM_CHAIN_ID_SEPOLIA: u64 = 421614;
+const ARBITRUM_DOMAIN: u32 = 3;
 const ETHEREUM_DOMAIN: u32 = 0;
 const USDC_AMOUNT: u64 = 1;
 const MIN_FINALITY_THRESHOLD: u64 = 1000;
 const AGENT_ADDRESS: &str = "0xD5aC5A88dd3F1FE5dcC3ac97B512Faeb48d06AF0";
 const USDC_BASE_SEPOLIA: &str = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"; // USDC on Base Sepolia
+const USDC_ARBITRUM_SEPOLIA: &str = "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"; // USDC on Arbitrum Sepolia
 const USDC_ETHEREUM_SEPOLIA: &str = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"; // USDC on Ethereum Sepolia
+const USDC_OPTIMISM_SEPOLIA: &str = "0x5fd84259d66Cd46123540766Be93DFE6D43130D7"; // USDC on Optimism Sepolia
 const LENDING_POOL_BASE_SEPOLIA: &str = "0x8bAB6d1b75f19e9eD9fCe8b9BD338844fF79aE27"; // Aave Lending Pool on Base Sepolia
 const LENDING_POOL_ETHEREUM_SEPOLIA: &str = "0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951"; // Aave Lending Pool on Ethereum Sepolia
+const LENDING_POOL_ARBITRUM_SEPOLIA: &str = "0xBfC91D59fdAA134A4ED45f7B584cAf96D7792Eff"; // Aave Lending Pool on Arbitrum Sepolia
+const LENDING_POOL_OPTIMISM_SEPOLIA: &str = "0xb50201558B00496A145fE76f7424749556E326D8"; // Aave Lending Pool on Optimism Sepolia
 const MESSENGER_ADDRESS_BASE_SEPOLIA: &str = "0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa"; // CCTP Messenger on Base Sepolia
 const MESSENGER_ADDRESS_ETHEREUM_SEPOLIA: &str = "0x8fe6b999dc680ccfdd5bf7eb0974218be2542daa"; // CCTP Messenger on Ethereum Sepolia
-const TRANSMITTER_ADDRESS_BASE_SEPOLIA: &str = "0xe737e5cebeeba77efe34d4aa090756590b1ce275"; // CCTP Transmitter on Base Sepolia
+const MESSENGER_ADDRESS_ARBITRUM_SEPOLIA: &str = "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA"; // CCTP Messenger on Arbitrum Sepolia
+const MESSENGER_ADDRESS_OPTIMISM_SEPOLIA: &str = "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA"; // CCTP Messenger on Optimism Sepolia
+const TRANSMITTER_ADDRESS_ARBITRUM_SEPOLIA: &str = "0xe737e5cebeeba77efe34d4aa090756590b1ce275"; // CCTP Transmitter on Arbitrum Sepolia
+const TRANSMITTER_ADDRESS_BASE_SEPOLIA: &str = "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275"; // CCTP Transmitter on Base Sepolia
 const TRANSMITTER_ADDRESS_ETHEREUM_SEPOLIA: &str = "0xe737e5cebeeba77efe34d4aa090756590b1ce275"; // CCTP Transmitter on Ethereum Sepolia
+const TRANSMITTER_ADDRESS_OPTIMISM_SEPOLIA: &str = "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275"; // CCTP Transmitter on Optimism Sepolia
 const VAULT_ADDRESS_BASE_SEPOLIA: &str = "0x565FDe3703d1bCc7Cbe161488ee1498ae429A145"; // Rebalancer Vault on Base Sepolia
+const VAULT_ADDRESS_ARBITRUM_SEPOLIA: &str = "0x858a8AFff11BfCCB61e69da87EBa1eCCCC34C640"; // Rebalancer Vault on Arbitrum Sepolia
 const ZERO_ADDRESS: &str = "0x0000000000000000000000000000000000000000";
+const SOURCE_CHAIN_ID: u64 = ARBITRUM_CHAIN_ID_SEPOLIA;
 
 async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
     let deployer_account = get_user_account_info_from_file(None)?;
@@ -44,37 +58,37 @@ async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
     println!("Contract deployed at: {}\n", deployer_account.account_id);
 
     let init_args = json!({
-        "source_chain": BASE_CHAIN_ID_SEPOLIA, // Base Sepolia
+        "source_chain": SOURCE_CHAIN_ID,
         "configs": [{
-            "chain_id": BASE_CHAIN_ID_SEPOLIA,
+            "chain_id": SOURCE_CHAIN_ID,
             "config": {
                 "aave": {
-                    "asset": USDC_BASE_SEPOLIA, // https://developers.circle.com/stablecoins/usdc-contract-addresses#testnet
+                    "asset": USDC_ARBITRUM_SEPOLIA, // https://developers.circle.com/stablecoins/usdc-contract-addresses#testnet
                     "on_behalf_of": ZERO_ADDRESS,
                     "referral_code": 0,
-                    "lending_pool_address": LENDING_POOL_BASE_SEPOLIA, // Aave Lending Pool on Base Sepolia
+                    "lending_pool_address": LENDING_POOL_ARBITRUM_SEPOLIA, // Aave Lending Pool on Arbitrum Sepolia
                 },
                 "cctp": {
-                    "messenger_address": MESSENGER_ADDRESS_BASE_SEPOLIA, // CCTP Messenger on Base Sepolia
-                    "transmitter_address": TRANSMITTER_ADDRESS_BASE_SEPOLIA, // CCTP Transmitter on Base Sepolia
+                    "messenger_address": MESSENGER_ADDRESS_ARBITRUM_SEPOLIA, // CCTP Messenger on Arbitrum Sepolia
+                    "transmitter_address": TRANSMITTER_ADDRESS_ARBITRUM_SEPOLIA, // CCTP Transmitter on Arbitrum Sepolia
                 },
                 "rebalancer": {
-                    "vault_address": VAULT_ADDRESS_BASE_SEPOLIA
+                    "vault_address": VAULT_ADDRESS_ARBITRUM_SEPOLIA
                 }
             }
         },
         {
-            "chain_id": ETHEREUM_CHAIN_ID_SEPOLIA, // Ethereum Sepolia
+            "chain_id": OPTIMISM_CHAIN_ID_SEPOLIA, // Optimism Sepolia
             "config": {
                 "aave": {
-                    "asset": USDC_ETHEREUM_SEPOLIA, // https://developers.circle.com/stablecoins/usdc-contract-addresses#testnet
+                    "asset": USDC_OPTIMISM_SEPOLIA, // https://developers.circle.com/stablecoins/usdc-contract-addresses#testnet
                     "on_behalf_of": ZERO_ADDRESS,
                     "referral_code": 0,
-                    "lending_pool_address":LENDING_POOL_ETHEREUM_SEPOLIA, // Aave Lending Pool on Ethereum Sepolia
+                    "lending_pool_address":LENDING_POOL_OPTIMISM_SEPOLIA, // Aave Lending Pool on Optimism Sepolia
                 },
                 "cctp": {
-                    "messenger_address": MESSENGER_ADDRESS_ETHEREUM_SEPOLIA, // CCTP Messenger on Ethereum Sepolia
-                    "transmitter_address": TRANSMITTER_ADDRESS_ETHEREUM_SEPOLIA, // CCTP Transmitter on Ethereum Sepolia
+                    "messenger_address": MESSENGER_ADDRESS_OPTIMISM_SEPOLIA, // CCTP Messenger on Optimism Sepolia
+                    "transmitter_address": TRANSMITTER_ADDRESS_OPTIMISM_SEPOLIA, // CCTP Transmitter on Optimism Sepolia
                 },
                 "rebalancer": {
                     "vault_address": ZERO_ADDRESS
@@ -129,78 +143,78 @@ async fn test_invest() -> Result<(), Box<dyn std::error::Error>> {
         access_list: vec![],
     };
 
-    let start_rebalancer_args = json!({
-        "source_chain": BASE_CHAIN_ID_SEPOLIA,
-        "destination_chain": ETHEREUM_CHAIN_ID_SEPOLIA,
-        "rebalancer_args": {
-            "amount": USDC_AMOUNT,
-            "source_chain": BASE_CHAIN_ID_SEPOLIA,
-            "destination_chain": ETHEREUM_CHAIN_ID_SEPOLIA,
-            "partial_transaction": empty_tx
-        },
-        "cctp_args": {
-            "amount": USDC_AMOUNT,
-            "destination_domain": ETHEREUM_DOMAIN,
-            "mint_recipient": address_to_bytes32_string(AGENT_ADDRESS),
-            "burn_token": USDC_BASE_SEPOLIA,
-            "destination_caller": address_to_bytes32_string(AGENT_ADDRESS),
-            "max_fee": to_usdc_units(0.99),
-            "min_finality_threshold": MIN_FINALITY_THRESHOLD,
-            "message": [],
-            "attestation": [],
-            "partial_burn_transaction": empty_tx,
-            "partial_mint_transaction": empty_tx
-        },
-        "gas_for_rebalancer": 10,
-        "gas_for_cctp_burn": 10,
-    });
+    // let start_rebalancer_args = json!({
+    //     "source_chain": BASE_CHAIN_ID_SEPOLIA,
+    //     "destination_chain": ETHEREUM_CHAIN_ID_SEPOLIA,
+    //     "rebalancer_args": {
+    //         "amount": USDC_AMOUNT,
+    //         "source_chain": BASE_CHAIN_ID_SEPOLIA,
+    //         "destination_chain": ETHEREUM_CHAIN_ID_SEPOLIA,
+    //         "partial_transaction": empty_tx
+    //     },
+    //     "cctp_args": {
+    //         "amount": USDC_AMOUNT,
+    //         "destination_domain": ETHEREUM_DOMAIN,
+    //         "mint_recipient": address_to_bytes32_string(AGENT_ADDRESS),
+    //         "burn_token": USDC_BASE_SEPOLIA,
+    //         "destination_caller": address_to_bytes32_string(AGENT_ADDRESS),
+    //         "max_fee": to_usdc_units(0.99),
+    //         "min_finality_threshold": MIN_FINALITY_THRESHOLD,
+    //         "message": [],
+    //         "attestation": [],
+    //         "partial_burn_transaction": empty_tx,
+    //         "partial_mint_transaction": empty_tx
+    //     },
+    //     "gas_for_rebalancer": 10,
+    //     "gas_for_cctp_burn": 10,
+    // });
 
-    let start_rebalance_result = friendly_json_rpc_client
-        .send_action(FunctionCallAction {
-            method_name: "start_rebalance".to_string(),
-            args: start_rebalancer_args.to_string().into_bytes(), // Convert directly to Vec<u8>
-            gas: 300000000000000,
-            deposit: 0,
-        })
-        .await?;
+    // let start_rebalance_result = friendly_json_rpc_client
+    //     .send_action(FunctionCallAction {
+    //         method_name: "start_rebalance".to_string(),
+    //         args: start_rebalancer_args.to_string().into_bytes(), // Convert directly to Vec<u8>
+    //         gas: 300000000000000,
+    //         deposit: 0,
+    //     })
+    //     .await?;
 
-    println!("Start rebalance result: {:?}", start_rebalance_result);
+    // println!("Start rebalance result: {:?}", start_rebalance_result);
 
-    let complete_rebalancer_args = json!({
-        "cctp_args": {
-            "amount": USDC_AMOUNT,
-            "destination_domain": ETHEREUM_DOMAIN,
-            "mint_recipient": address_to_bytes32_string(AGENT_ADDRESS),
-            "burn_token": USDC_BASE_SEPOLIA,
-            "destination_caller": address_to_bytes32_string(AGENT_ADDRESS),
-            "max_fee": to_usdc_units(0.99),
-            "min_finality_threshold": MIN_FINALITY_THRESHOLD,
-            "message": [],
-            "attestation": [],
-            "partial_burn_transaction": empty_tx,
-            "partial_mint_transaction": empty_tx
-        },
-        "aave_args": {
-            "amount": USDC_AMOUNT,
-            "partial_transaction": empty_tx
-        },
-        "gas_cctp_mint": 10,
-        "gas_aave": 10,
-    });
+    // let complete_rebalancer_args = json!({
+    //     "cctp_args": {
+    //         "amount": USDC_AMOUNT,
+    //         "destination_domain": ETHEREUM_DOMAIN,
+    //         "mint_recipient": address_to_bytes32_string(AGENT_ADDRESS),
+    //         "burn_token": USDC_BASE_SEPOLIA,
+    //         "destination_caller": address_to_bytes32_string(AGENT_ADDRESS),
+    //         "max_fee": to_usdc_units(0.99),
+    //         "min_finality_threshold": MIN_FINALITY_THRESHOLD,
+    //         "message": [],
+    //         "attestation": [],
+    //         "partial_burn_transaction": empty_tx,
+    //         "partial_mint_transaction": empty_tx
+    //     },
+    //     "aave_args": {
+    //         "amount": USDC_AMOUNT,
+    //         "partial_transaction": empty_tx
+    //     },
+    //     "gas_cctp_mint": 10,
+    //     "gas_aave": 10,
+    // });
 
-    let complete_rebalancer_result = friendly_json_rpc_client
-        .send_action(FunctionCallAction {
-            method_name: "complete_rebalance".to_string(),
-            args: complete_rebalancer_args.to_string().into_bytes(), // Convert directly to Vec<u8>
-            gas: 300000000000000,
-            deposit: 0,
-        })
-        .await?;
+    // let complete_rebalancer_result = friendly_json_rpc_client
+    //     .send_action(FunctionCallAction {
+    //         method_name: "complete_rebalance".to_string(),
+    //         args: complete_rebalancer_args.to_string().into_bytes(), // Convert directly to Vec<u8>
+    //         gas: 300000000000000,
+    //         deposit: 0,
+    //     })
+    //     .await?;
 
-    println!(
-        "Complete rebalance result: {:?}",
-        complete_rebalancer_result
-    );
+    // println!(
+    //     "Complete rebalance result: {:?}",
+    //     complete_rebalancer_result
+    // );
 
     Ok(())
 }
