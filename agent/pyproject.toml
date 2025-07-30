@@ -5,6 +5,18 @@ description = "A Shade Agent for NEAR"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "dotenv>=0.9.9",
     "dstack-sdk>=0.1.8",
-    "near-omni-client>=0.0.1",
+    "matplotlib>=3.10.3",
+    "near-omni-client>=0.1.7",
+    "numpy>=2.3.1",
+    "pandas>=2.3.1",
+    "requests>=2.32.4",
+    "scipy>=1.16.0",
 ]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
