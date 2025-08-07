@@ -12,7 +12,7 @@ from near_omni_client.crypto.keypair import KeyPair
 from near_omni_client.providers.near import NearFactoryProvider
 
 from utils import parse_chain_balances, parse_chain_configs, parse_u32_result
-from yield_tracker import get_extra_data_for_optimization
+from optimizer_data_fetcher import get_extra_data_for_optimization
 from optimizer import optimize_chain_allocation_with_direction
 
 PATH = "rebalancer.testnet"
