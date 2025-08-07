@@ -10,10 +10,10 @@ from near_omni_client.wallets.near_wallet import NearWallet
 from near_omni_client.crypto.keypair import KeyPair
 from near_omni_client.providers.near import NearFactoryProvider
 
-from utils import parse_chain_balances, parse_chain_configs, parse_u32_result
+from utils import parse_chain_balances, parse_chain_configs, parse_u32_result, to_usdc_units
 from optimizer_data_fetcher import get_extra_data_for_optimization
 from optimizer import optimize_chain_allocation_with_direction
-from rebalancer import compute_rebalance_operations
+from rebalancer import compute_rebalance_operations, execute_all_rebalances
 
 PATH = "rebalancer.testnet"
 
@@ -22,6 +22,8 @@ async def main():
     contract_id = os.getenv("NEAR_CONTRACT_ACCOUNT", "rebalancer.testnet")
     near_network = os.getenv("NEAR_NETWORK", "testnet")
     alchemy_api_key = os.getenv("ALCHEMY_API_KEY", "your_alchemy_api_key_here")
+    max_bridge_fee = float(os.getenv("MAX_BRIDGE_FEE", "0.99"))
+    min_bridge_finality_threshold = int(os.getenv("MIN_BRIDGE_FINALITY_THRESHOLD", "1000"))
 
     one_time_signer_private_key = os.getenv("ONE_TIME_SIGNER_PRIVATE_KEY", "your_private_key_here")
     one_time_signer_account_id = os.getenv("ONE_TIME_SIGNER_ACCOUNT_ID", "your_account_id_here")
@@ -86,6 +88,21 @@ async def main():
 
     rebalance_operations = compute_rebalance_operations(current_allocations, optimized_allocations["allocations"])
     print("Rebalance Operations:", rebalance_operations)
+
+    if not rebalance_operations:
+        print("No rebalance operations needed.")
+        return
+    
+    await execute_all_rebalances(
+        rebalance_operations=rebalance_operations,
+        near_client=near_client,
+        near_wallet=near_wallet,
+        AGENT_ADDRESS=PATH,
+        max_fee=to_usdc_units(max_bridge_fee),
+        min_finality_threshold=min_bridge_finality_threshold,
+    )
+    print("Rebalance operations computed successfully.")
+    
    
 if __name__ == "__main__":
     asyncio.run(main())
