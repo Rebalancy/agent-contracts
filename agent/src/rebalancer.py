@@ -87,14 +87,22 @@ async def execute_all_rebalances(
             "gas_for_rebalancer": gas_for_rebalancer,
             "gas_for_cctp_burn": gas_for_cctp_burn,
         }
-
+        print("Rebalance Args:", rebalance_args)
+        print("Executing rebalance operation:", op)
         await execute_rebalance(
             near_client=near_client,
+            near_wallet=near_wallet,
             receiver_account_id=near_contract_id,
             rebalance_args=rebalance_args
         )
 
-async def execute_rebalance(near_client, receiver_account_id, rebalance_args):
+async def execute_rebalance(near_client, near_wallet, receiver_account_id, rebalance_args):
+    public_key_str = await near_wallet.get_public_key()
+    signer_account_id = near_wallet.get_address()
+    private_key_str = near_wallet.keypair.secret_key
+    print("signer_account_id", signer_account_id)
+    print("public_key_str", public_key_str)
+    print("private_key_str", private_key_str)
     nonce_and_block_hash = await near_client.get_nonce_and_block_hash(signer_account_id, public_key_str)
 
     print("nonce_and_block_hash", nonce_and_block_hash)
@@ -127,8 +135,9 @@ async def execute_rebalance(near_client, receiver_account_id, rebalance_args):
     print("signed_tx_base64", signed_tx_base64)
 
     # 3) Send the transaction
-    result = await near_client.send_raw_transaction(signed_tx_base64)
-    print("result", result)
+    print("Sending transaction to NEAR network...")
+    # result = await near_client.send_raw_transaction(signed_tx_base64)
+    # print("result", result)
 
     # nonce = result.get("nonce", None)
 
