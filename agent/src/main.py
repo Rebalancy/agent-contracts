@@ -1,18 +1,20 @@
 import os
 import asyncio
 from dotenv import load_dotenv
-from utils import parse_chain_config,parse_chain_configs, parse_u32_result
-from yield_tracker import analyze_market_data
-from rebalancer import execute_rebalance
-from config import get_rebalancer_config
+
 from near_omni_client.json_rpc.client import NearClient
 from near_omni_client.providers.near import NearFactoryProvider
 from near_omni_client.networks import Network
 from near_omni_client.providers.evm import AlchemyFactoryProvider
 from near_omni_client.wallets import MPCWallet
+from near_omni_client.wallets.near_wallet import NearWallet
+from near_omni_client.crypto.keypair import KeyPair
+from near_omni_client.providers.near import NearFactoryProvider
 
-BASE_CHAIN_ID_SEPOLIA = 84532 # TODO: Get the value from the Near Omni Client
-ETHEREUM_CHAIN_ID_SEPOLIA = 111155111 # TODO: Get the value from the Near Omni Client
+from utils import parse_chain_balances, parse_chain_configs, parse_u32_result
+from yield_tracker import get_extra_data_for_optimization
+from optimizer import optimize_chain_allocation_with_direction
+
 PATH = "rebalancer.testnet"
 
 async def main():
@@ -20,19 +22,19 @@ async def main():
     contract_id = os.getenv("NEAR_CONTRACT_ACCOUNT", "rebalancer.testnet")
     near_network = os.getenv("NEAR_NETWORK", "testnet")
     alchemy_api_key = os.getenv("ALCHEMY_API_KEY", "your_alchemy_api_key_here")
-    asset_address = os.getenv("ASSET_ADDRESS", "0x036CbD53842c5426634e7929541eC2318f3dCF7e")
-    print("asset_address:", asset_address)
-    near_network = Network.parse(near_network)
-    near_client = NearFactoryProvider().get_provider(near_network)
-    alchemy_factory_provider = AlchemyFactoryProvider(api_key=alchemy_api_key)
-    mpc_wallet = MPCWallet(
-        path=PATH,
-        account_id=contract_id,
-        near_network=near_network,
-        provider_factory=alchemy_factory_provider,
-        supported_networks=[Network.BASE_SEPOLIA, Network.ETHEREUM_SEPOLIA],
-    )
 
+    one_time_signer_private_key = os.getenv("ONE_TIME_SIGNER_PRIVATE_KEY", "your_private_key_here")
+    one_time_signer_account_id = os.getenv("ONE_TIME_SIGNER_ACCOUNT_ID", "your_account_id_here")
+    one_time_signer_public_key = os.getenv("ONE_TIME_SIGNER_PUBLIC_KEY", "your_public_key_here")
+
+    print("one_time_signer_private_key:", one_time_signer_private_key)
+    print("one_time_signer_account_id:", one_time_signer_account_id)
+    print("one_time_signer_public_key:", one_time_signer_public_key)
+
+    near_network = Network.parse(near_network)
+    near_factory_provider = NearFactoryProvider()
+    near_client = near_factory_provider.get_provider(near_network)
+    alchemy_factory_provider = AlchemyFactoryProvider(api_key=alchemy_api_key)
     chain_config_raw = await near_client.call_contract(
         contract_id=contract_id,
         method="get_all_configs",
@@ -45,18 +47,43 @@ async def main():
     source_chain_raw = await near_client.call_contract(
         contract_id=contract_id,
         method="get_source_chain",
-        args={
-            "destination_chain": BASE_CHAIN_ID_SEPOLIA
-        }
+        args={}
     )
-    source_chain = parse_u32_result(source_chain_raw)
+    source_chain_id = parse_u32_result(source_chain_raw)
 
-    print("Source Chain ID:", source_chain)
+    print("Source Chain ID:", source_chain_id)
 
-    market_data = await analyze_market_data(near_client=near_client, mpc_wallet=mpc_wallet, contract_id=contract_id, source_chain_id=source_chain,
-                                            asset_address=asset_address)
-    # if market_data:
-        # execute_rebalance()
+    current_allocations_raw = await near_client.call_contract(
+        contract_id=contract_id,
+        method="get_allocations",
+        args={}
+    )
 
+    current_allocations = parse_chain_balances(current_allocations_raw)
+    print("Current Allocations:", current_allocations)
+    
+    mpc_wallet = MPCWallet(
+        path=PATH,
+        account_id=contract_id, # The account ID of the contract on NEAR
+        near_network=near_network,
+        provider_factory=alchemy_factory_provider,
+        supported_networks=[Network.OPTIMISM_SEPOLIA, Network.ARBITRUM_SEPOLIA],
+    )
+
+    extra_data_for_optimization = await get_extra_data_for_optimization(mpc_wallet, current_allocations, configs, source_chain_id)
+
+    optimized_allocations = optimize_chain_allocation_with_direction(data=extra_data_for_optimization)
+
+    print("Optimized Allocations:", optimized_allocations)
+    
+    near_local_signer = KeyPair.from_string(one_time_signer_private_key)
+    near_wallet = NearWallet(
+        keypair=near_local_signer,
+        account_id=one_time_signer_account_id,
+        provider_factory=near_factory_provider,
+        supported_networks=[Network.NEAR_TESTNET, Network.NEAR_MAINNET],
+    )
+   
 if __name__ == "__main__":
     asyncio.run(main())
+
