@@ -1,7 +1,8 @@
 from web3 import Web3
 from near_omni_client.adapters.aave import LendingPool
-from near_omni_client.networks import Network
 from near_omni_client.wallets import MPCWallet
+
+from utils import from_chain_id_to_network
 from vault_abi import get_vault_abi
 
 async def get_extra_data_for_optimization(mpc_wallet: MPCWallet, current_allocations, configs, source_chain_id: int) -> dict:
@@ -51,16 +52,5 @@ async def get_extra_data_for_optimization(mpc_wallet: MPCWallet, current_allocat
 
     return data
 
-def from_chain_id_to_network(chain_id: int) -> Network:
-    """Convert a chain ID to a Network enum."""
-    if chain_id == 84532:
-        return Network.BASE_SEPOLIA
-    elif chain_id == 111155111:
-        return Network.ETHEREUM_SEPOLIA
-    elif chain_id == 11155420:
-        return Network.OPTIMISM_SEPOLIA
-    elif chain_id == 421614:
-        return Network.ARBITRUM_SEPOLIA
-    else:
-        raise ValueError(f"Unsupported chain ID: {chain_id}")
+
     

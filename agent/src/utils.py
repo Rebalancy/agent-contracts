@@ -1,5 +1,6 @@
 import json
 from typing import Any, Dict
+from near_omni_client.networks import Network
 
 def parse_chain_config(response: Any) -> dict:
     """
@@ -88,3 +89,27 @@ def parse_chain_balances(response: Any) -> Dict[str, int]:
         return {chain_id: int(balance_str) for chain_id, balance_str in parsed}
     except Exception as e:
         raise ValueError(f"Failed to parse Vec<(ChainId, u128)>: {e}")
+    
+def to_usdc_units(value: float) -> int:
+    return int(value * 1_000_000)  # USDC has 6 decimal places
+
+def from_chain_id_to_network(chain_id: int) -> Network:
+    """Convert a chain ID to a Network enum."""
+    if chain_id == 84532:
+        return Network.BASE_SEPOLIA
+    elif chain_id == 8453:
+        return Network.BASE_MAINNET
+    elif chain_id == 1:
+        return Network.ETHEREUM_MAINNET
+    elif chain_id == 111155111:
+        return Network.ETHEREUM_SEPOLIA
+    elif chain_id == 11155420:
+        return Network.OPTIMISM_SEPOLIA
+    elif chain_id == 10:
+        return Network.OPTIMISM_MAINNET
+    elif chain_id == 42161:
+        return Network.ARBITRUM_MAINNET
+    elif chain_id == 421614:
+        return Network.ARBITRUM_SEPOLIA
+    else:
+        raise ValueError(f"Unsupported chain ID: {chain_id}")
