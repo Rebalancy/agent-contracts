@@ -1,5 +1,7 @@
 import os
 import asyncio
+import json
+
 from dotenv import load_dotenv
 
 from near_omni_client.providers.near import NearFactoryProvider
@@ -72,7 +74,16 @@ async def main():
         supported_networks=[Network.OPTIMISM_SEPOLIA, Network.ARBITRUM_SEPOLIA],
     )
 
-    extra_data_for_optimization = await get_extra_data_for_optimization(mpc_wallet, current_allocations, configs, source_chain_id)
+    override_rates= os.getenv("OVERRIDE_INTEREST_RATES", "{}")
+    try:
+        override_interest_rates_raw = json.loads(override_rates)
+        override_interest_rates = {int(k): v for k, v in override_interest_rates_raw.items()}
+    except json.JSONDecodeError:
+        raise ValueError("OVERRIDE_INTEREST_RATES must be a valid JSON dictionary.")
+
+    print("Override Interest Rates:", override_interest_rates)
+
+    extra_data_for_optimization = await get_extra_data_for_optimization(mpc_wallet, current_allocations, configs, source_chain_id, override_interest_rates)
 
     optimized_allocations = optimize_chain_allocation_with_direction(data=extra_data_for_optimization)
 
