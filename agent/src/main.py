@@ -2,7 +2,6 @@ import os
 import asyncio
 from dotenv import load_dotenv
 
-from near_omni_client.json_rpc.client import NearClient
 from near_omni_client.providers.near import NearFactoryProvider
 from near_omni_client.networks import Network
 from near_omni_client.providers.evm import AlchemyFactoryProvider
@@ -14,6 +13,7 @@ from near_omni_client.providers.near import NearFactoryProvider
 from utils import parse_chain_balances, parse_chain_configs, parse_u32_result
 from optimizer_data_fetcher import get_extra_data_for_optimization
 from optimizer import optimize_chain_allocation_with_direction
+from rebalancer import compute_rebalance_operations
 
 PATH = "rebalancer.testnet"
 
@@ -83,6 +83,9 @@ async def main():
         provider_factory=near_factory_provider,
         supported_networks=[Network.NEAR_TESTNET, Network.NEAR_MAINNET],
     )
+
+    rebalance_operations = compute_rebalance_operations(current_allocations, optimized_allocations["allocations"])
+    print("Rebalance Operations:", rebalance_operations)
    
 if __name__ == "__main__":
     asyncio.run(main())
