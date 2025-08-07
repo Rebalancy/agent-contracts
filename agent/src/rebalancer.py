@@ -1,7 +1,12 @@
 import base64
 from typing import Dict, List
+
 from near_omni_client.transactions import ActionFactory, TransactionBuilder
 from near_omni_client.transactions.utils import decode_key
+from near_omni_client.adapters.cctp.usdc_contract import USDCContract
+
+from utils import from_chain_id_to_network
+from evm_transaction import get_empty_tx_for_chain
 
 def compute_rebalance_operations(
     current_allocations: Dict[int, int],
@@ -40,62 +45,56 @@ def compute_rebalance_operations(
 
     return rebalance_operations
 
-# async def execute_all_rebalances(
-#     current_allocations: Dict[int, int],
-#     optimized_allocations: Dict[int, int],
-#     near_client,
-#     contract_id: str,
-#     one_time_signer_account_id: str,
-#     one_time_signer_public_key: str,
-#     one_time_signer_private_key: str,
-#     AGENT_ADDRESS: str,
-#     CHAIN_ID_TO_DOMAIN: Dict[int, int],
-#     CHAIN_ID_TO_USDC: Dict[int, str],
-#     to_usdc_units,
-#     MIN_FINALITY_THRESHOLD,
-#     execute_rebalance
-# ):
-#     rebalance_ops = compute_rebalance_operations(current_allocations, optimized_allocations)
+async def execute_all_rebalances(
+    rebalance_operations: List[Dict[str, int]],
+    near_client,
+    near_wallet,
+    near_contract_id: str,
+    agent_address: str,
+    max_bridge_fee: float,
+    min_finality_threshold: int,
+    gas_for_rebalancer: int = 10,
+    gas_for_cctp_burn: int = 10,
+):
+    for op in rebalance_operations:
+        tx = get_empty_tx_for_chain(op["from"])
+        network_for_to_chain = from_chain_id_to_network[op["to"]]
+        network_for_from_chain = from_chain_id_to_network[op["from"]]
+        usdc_address_on_from_chain = USDCContract.get_address_for_chain(network_for_from_chain)
 
-#     for op in rebalance_ops:
-#         tx = empty_tx_for_chain(op["from"])
+        rebalance_args = {
+            "source_chain": op["from"],
+            "destination_chain": op["to"],
+            "rebalancer_args": {
+                "amount": op["amount"],
+                "source_chain": op["from"],
+                "destination_chain": op["to"],
+                "partial_transaction": tx
+            },
+            "cctp_args": {
+                "amount": op["amount"],
+                "destination_domain": network_for_to_chain.domain,
+                "mint_recipient": agent_address,
+                "burn_token": usdc_address_on_from_chain,
+                "destination_caller": agent_address,
+                "max_fee": max_bridge_fee,
+                "min_finality_threshold": min_finality_threshold,
+                "message": [],
+                "attestation": [],
+                "partial_burn_transaction": tx,
+                "partial_mint_transaction": tx
+            },
+            "gas_for_rebalancer": gas_for_rebalancer,
+            "gas_for_cctp_burn": gas_for_cctp_burn,
+        }
 
-#         rebalance_args = {
-#             "source_chain": op["from"],
-#             "destination_chain": op["to"],
-#             "rebalancer_args": {
-#                 "amount": op["amount"],
-#                 "source_chain": op["from"],
-#                 "destination_chain": op["to"],
-#                 "partial_transaction": tx
-#             },
-#             "cctp_args": {
-#                 "amount": op["amount"],
-#                 "destination_domain": CHAIN_ID_TO_DOMAIN[op["to"]],
-#                 "mint_recipient": AGENT_ADDRESS,
-#                 "burn_token": CHAIN_ID_TO_USDC[op["from"]],
-#                 "destination_caller": AGENT_ADDRESS,
-#                 "max_fee": to_usdc_units(0.99),
-#                 "min_finality_threshold": MIN_FINALITY_THRESHOLD,
-#                 "message": [],
-#                 "attestation": [],
-#                 "partial_burn_transaction": tx,
-#                 "partial_mint_transaction": tx
-#             },
-#             "gas_for_rebalancer": 10,
-#             "gas_for_cctp_burn": 10,
-#         }
+        await execute_rebalance(
+            near_client=near_client,
+            receiver_account_id=near_contract_id,
+            rebalance_args=rebalance_args
+        )
 
-#         await execute_rebalance(
-#             near_client=near_client,
-#             signer_account_id=one_time_signer_account_id,
-#             public_key_str=one_time_signer_public_key,
-#             receiver_account_id=contract_id,
-#             private_key_str=one_time_signer_private_key,
-#             rebalance_args=rebalance_args
-#         )
-
-async def execute_rebalance(near_client, signer_account_id, public_key_str, receiver_account_id, private_key_str, rebalance_args):
+async def execute_rebalance(near_client, receiver_account_id, rebalance_args):
     nonce_and_block_hash = await near_client.get_nonce_and_block_hash(signer_account_id, public_key_str)
 
     print("nonce_and_block_hash", nonce_and_block_hash)
