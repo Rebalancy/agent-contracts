@@ -11,3 +11,7 @@ test:
 
 just-build-with-docker:
     cargo near build reproducible-wasm --variant force_bulk_memory   
+
+test-agent:
+    echo "Running agent tests..."
+    cd agent && PYTHONPATH=src uv run pytest
