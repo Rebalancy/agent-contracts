@@ -4,8 +4,9 @@ from typing import Dict, List
 from near_omni_client.transactions import ActionFactory, TransactionBuilder
 from near_omni_client.transactions.utils import decode_key
 from near_omni_client.adapters.cctp.usdc_contract import USDCContract
+from web3 import Web3
 
-from utils import from_chain_id_to_network
+from utils import from_chain_id_to_network, address_to_bytes32
 from evm_transaction import get_empty_tx_for_chain
 
 def compute_rebalance_operations(
@@ -57,10 +58,14 @@ async def execute_all_rebalances(
     gas_for_cctp_burn: int = 10,
 ):
     for op in rebalance_operations:
-        tx = get_empty_tx_for_chain(op["from"])
-        network_for_to_chain = from_chain_id_to_network[op["to"]]
-        network_for_from_chain = from_chain_id_to_network[op["from"]]
-        usdc_address_on_from_chain = USDCContract.get_address_for_chain(network_for_from_chain)
+        tx = get_empty_tx_for_chain(op["from"]).to_dict()
+        # TODO: Obtener gas costs 
+        # TODO: Obtener nonce de la agent address
+        network_for_to_chain = from_chain_id_to_network(op["to"])
+        network_for_from_chain = from_chain_id_to_network(op["from"])
+        usdc_address_on_from_chain = USDCContract.get_address_for_network(network_for_from_chain)
+        agent_address_bytes32 = address_to_bytes32(agent_address)
+        agent_address_hex= Web3.to_hex(agent_address_bytes32)
 
         rebalance_args = {
             "source_chain": op["from"],
@@ -69,14 +74,14 @@ async def execute_all_rebalances(
                 "amount": op["amount"],
                 "source_chain": op["from"],
                 "destination_chain": op["to"],
-                "partial_transaction": tx
+                "partial_transaction": tx,
             },
             "cctp_args": {
                 "amount": op["amount"],
-                "destination_domain": network_for_to_chain.domain,
-                "mint_recipient": agent_address,
+                "destination_domain": int(network_for_to_chain.domain),
+                "mint_recipient": agent_address_hex,
                 "burn_token": usdc_address_on_from_chain,
-                "destination_caller": agent_address,
+                "destination_caller": agent_address_hex,
                 "max_fee": max_bridge_fee,
                 "min_finality_threshold": min_finality_threshold,
                 "message": [],
@@ -99,7 +104,7 @@ async def execute_all_rebalances(
 async def execute_rebalance(near_client, near_wallet, receiver_account_id, rebalance_args):
     public_key_str = await near_wallet.get_public_key()
     signer_account_id = near_wallet.get_address()
-    private_key_str = near_wallet.keypair.secret_key
+    private_key_str = near_wallet.keypair.to_string()
     print("signer_account_id", signer_account_id)
     print("public_key_str", public_key_str)
     print("private_key_str", private_key_str)
@@ -120,13 +125,14 @@ async def execute_rebalance(near_client, near_wallet, receiver_account_id, rebal
                 method_name="start_rebalance",
                 args=rebalance_args,
                 gas=300_000_000_000_000,
-                deposit=1,
+                deposit=0,
             )
         )
         .build()
     )
 
     private_key_bytes = decode_key(private_key_str)
+    print("private_key_bytes", private_key_bytes)
     signed_tx = tx.to_vec(private_key_bytes)
     print("signed_tx", signed_tx)
 
@@ -136,8 +142,8 @@ async def execute_rebalance(near_client, near_wallet, receiver_account_id, rebal
 
     # 3) Send the transaction
     print("Sending transaction to NEAR network...")
-    # result = await near_client.send_raw_transaction(signed_tx_base64)
-    # print("result", result)
+    result = await near_client.send_raw_transaction(signed_tx_base64)
+    print("result", result)
 
     # nonce = result.get("nonce", None)
 
