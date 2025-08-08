@@ -1,4 +1,6 @@
 import json
+from web3 import Web3
+
 from typing import Any, Dict
 from near_omni_client.networks import Network
 
@@ -113,3 +115,10 @@ def from_chain_id_to_network(chain_id: int) -> Network:
         return Network.ARBITRUM_SEPOLIA
     else:
         raise ValueError(f"Unsupported chain ID: {chain_id}")
+    
+
+def address_to_bytes32(addr: str) -> bytes:
+    addr = Web3.to_checksum_address(addr)
+    addr_bytes = Web3.to_bytes(hexstr=addr)
+    # Left-pad with zeros to ensure it is 32 bytes
+    return addr_bytes.rjust(32, b'\x00')
