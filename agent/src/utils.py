@@ -26,13 +26,16 @@ def parse_chain_config(response: Any) -> dict:
 
 def parse_chain_configs(response: Any) -> Dict[str, dict]:
     """
-    Parsea el resultado de get_all_configs() desde un Vec<u8> con lista de tuplas.
-
+    Parse a NEAR contract response containing chain configurations.
+    
     Args:
-        response: La respuesta del contrato con un campo `.result` (list[int])
-
+        response: The response from `call_contract`, must have `.result` as list[int].
+    
     Returns:
-        Dict[str, dict]: Un dict tipo {chain_id_str: config_dict}
+        Dict[str, dict]: A dictionary mapping chain IDs to their configurations.
+    
+    Raises:
+        ValueError: If the response format is invalid or parsing fails.
     """
     if not hasattr(response, "result") or not isinstance(response.result, list):
         raise ValueError("Invalid response: expected .result to be list[int]")
@@ -50,15 +53,16 @@ def parse_chain_configs(response: Any) -> Dict[str, dict]:
     
 def parse_u32_result(response) -> int:
     """
-    Parsea un `u32` devuelto como string ASCII en un Vec<u8>` de NEAR.
-
-    Ej: result=[56, 52, 53, 51, 50] => 84532
+    Parse a NEAR contract response that returns a single u32 value.
 
     Args:
-        response: objeto con `.result` como list[int]
+        response: The response from `call_contract`, must have `.result` as list[int].
 
     Returns:
-        int: valor u32 parseado
+        int: The u32 value as an integer in Python.
+
+    Raises:
+        ValueError: If the response format is invalid or decoding fails.
     """
     if not hasattr(response, "result") or not isinstance(response.result, list):
         raise ValueError("Invalid response format")
@@ -70,13 +74,13 @@ def parse_u32_result(response) -> int:
     
 def parse_chain_balances(response: Any) -> Dict[str, int]:
     """
-    Parsea un Vec<(ChainId, u128)> donde los u128 vienen como strings.
+    Parse a Vec<(ChainId, u128)> where the u128 values come as strings.
 
     Args:
-        response: respuesta de `call_contract`, debe tener `.result` como list[int]
+        response: The response from `call_contract`, must have `.result` as list[int]
 
     Returns:
-        Dict[str, int]: Mapeo de `chain_id` → balance u128 (int en Python)
+        Dict[str, int]: Mapping of `chain_id` → balance u128 (int in Python)
     """
     if not hasattr(response, "result") or not isinstance(response.result, list):
         raise ValueError("Invalid response: missing `.result` as list[int]")
