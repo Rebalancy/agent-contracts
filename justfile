@@ -10,7 +10,7 @@ test:
     cd contract && cargo test
 
 build-with-docker:
-    cargo near build reproducible-wasm --variant force_bulk_memory   
+    cd contract && cargo near build reproducible-wasm --variant force_bulk_memory   
 
 test-agent:
     echo "Running agent tests..."
