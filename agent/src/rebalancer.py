@@ -1,13 +1,18 @@
 import base64
+import json
 from typing import Dict, List
 
 from near_omni_client.transactions import ActionFactory, TransactionBuilder
 from near_omni_client.transactions.utils import decode_key
 from near_omni_client.adapters.cctp.usdc_contract import USDCContract
+from near_omni_client.json_rpc.client import NearClient
+
 from web3 import Web3
 
+from rebalancer_handlers import get_handler_by_tx_type
 from utils import from_chain_id_to_network, address_to_bytes32
-from evm_transaction import get_empty_tx_for_chain
+from evm_transaction import get_empty_tx_for_chain,create_partial_tx
+from gas_estimator import GasEstimator
 
 def compute_rebalance_operations(
     current_allocations: Dict[int, int],
@@ -49,6 +54,7 @@ def compute_rebalance_operations(
 async def execute_all_rebalances(
     rebalance_operations: List[Dict[str, int]],
     near_client,
+    evm_factory_provider,
     near_wallet,
     near_contract_id: str,
     agent_address: str,
@@ -59,10 +65,22 @@ async def execute_all_rebalances(
 ):
     for op in rebalance_operations:
         tx = get_empty_tx_for_chain(op["from"]).to_dict()
-        # TODO: Obtener gas costs 
-        # TODO: Obtener nonce de la agent address
         network_for_to_chain = from_chain_id_to_network(op["to"])
         network_for_from_chain = from_chain_id_to_network(op["from"])
+
+        gas_estimator = GasEstimator(evm_factory_provider=evm_factory_provider)
+        partial_rebalancer_tx = create_partial_tx(
+            network=network_for_from_chain,
+            agent_address=agent_address,
+            evm_factory_provider=evm_factory_provider,
+            gas_estimator=gas_estimator,
+        )
+        partial_cttp_burn_tx = create_partial_tx(
+            network=network_for_to_chain,
+            agent_address=agent_address,
+            evm_factory_provider=evm_factory_provider,
+            gas_estimator=gas_estimator,
+        )
         usdc_address_on_from_chain = USDCContract.get_address_for_network(network_for_from_chain)
         agent_address_bytes32 = address_to_bytes32(agent_address)
         agent_address_hex= Web3.to_hex(agent_address_bytes32)
@@ -74,7 +92,7 @@ async def execute_all_rebalances(
                 "amount": op["amount"],
                 "source_chain": op["from"],
                 "destination_chain": op["to"],
-                "partial_transaction": tx,
+                "partial_transaction": partial_rebalancer_tx.to_dict(),
             },
             "cctp_args": {
                 "amount": op["amount"],
@@ -86,8 +104,8 @@ async def execute_all_rebalances(
                 "min_finality_threshold": min_finality_threshold,
                 "message": [],
                 "attestation": [],
-                "partial_burn_transaction": tx,
-                "partial_mint_transaction": tx
+                "partial_burn_transaction": partial_cttp_burn_tx.to_dict(),
+                "partial_mint_transaction": partial_cttp_burn_tx.to_dict()
             },
             "gas_for_rebalancer": gas_for_rebalancer,
             "gas_for_cctp_burn": gas_for_cctp_burn,
@@ -97,11 +115,12 @@ async def execute_all_rebalances(
         await execute_rebalance(
             near_client=near_client,
             near_wallet=near_wallet,
+            evm_factory_provider=evm_factory_provider,
             receiver_account_id=near_contract_id,
             rebalance_args=rebalance_args
         )
 
-async def execute_rebalance(near_client, near_wallet, receiver_account_id, rebalance_args):
+async def execute_rebalance(near_client: NearClient, near_wallet, evm_factory_provider,receiver_account_id, rebalance_args):
     public_key_str = await near_wallet.get_public_key()
     signer_account_id = near_wallet.get_address()
     private_key_str = near_wallet.keypair.to_string()
@@ -145,12 +164,64 @@ async def execute_rebalance(near_client, near_wallet, receiver_account_id, rebal
     result = await near_client.send_raw_transaction(signed_tx_base64)
     print("result", result)
 
-    # nonce = result.get("nonce", None)
+    success_value_b64 = result.status.get("SuccessValue")
+    if not success_value_b64:
+        raise Exception("start_rebalance no devolvió SuccessValue")
+
+    nonce = int(base64.b64decode(success_value_b64).decode())
+    print(f"✅ nonce = {nonce}")
+
+    # status = result.get("status", {})
+    # success_value_b64 = status.get("SuccessValue", None)
+
+    # if success_value_b64 is None:
+    #     raise Exception("start_rebalance failed or did not return SuccessValue")
+
+    # # 6. Decode base64 nonce
+    # nonce_str = base64.b64decode(success_value_b64).decode("utf-8").strip()
+    # nonce = int(nonce_str)
+    # print(f"✅ Rebalance started with nonce = {nonce}")
 
     # call get_signed_transactions
+    signed_transactions_result = await near_client.call_contract(
+        contract_id=receiver_account_id,
+        method="get_signed_transactions",
+        args={
+            "nonce": nonce
+        }
+    )
 
-    # propagate signatures
+    print("signed_transactions result", signed_transactions_result)
 
-    # CCTP Wait For Attestation
+    raw_result = signed_transactions_result.result  # list[int] de ASCII codes
+    
+    parsed = json.loads(bytes(raw_result).decode("utf-8"))  # ahora sí lista de listas de bytes
+    
+    signed_transactions_bytes = [bytes(tx) for tx in parsed]
+    
+    print("✅ signed_transactions_bytes:", signed_transactions_bytes)
 
-    # Complete Rebalance
+    for tx in signed_transactions_bytes:
+        tx_type = tx[0]
+        raw_signed = tx[1:]
+        print(f"tx_type: {tx_type}, raw_signed_tx: {raw_signed.hex()}")
+   
+        handler = get_handler_by_tx_type(tx_type)
+   
+        if handler is None:
+            print(f"⚠️ No handler for tx_type {tx_type}")
+            continue
+   
+        print(f"Executing handler for tx_type {tx_type}")
+   
+        # Execute the handler for the transaction type
+        handler(raw_signed, evm_factory_provider)
+
+        # propagate signatures
+
+        # CCTP Wait For Attestation
+
+        # Complete Rebalance
+
+
+

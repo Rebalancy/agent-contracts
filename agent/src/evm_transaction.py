@@ -1,6 +1,9 @@
 from typing import List, Optional
 from dataclasses import dataclass
 
+from web3 import Web3
+from gas_estimator import GasEstimator
+
 @dataclass
 class EVMTransaction:
     chain_id: Optional[int]
@@ -38,3 +41,30 @@ def get_empty_tx_for_chain(chain_id: int) -> EVMTransaction:
         input=[],
         access_list=[]
     )
+
+def create_partial_tx(
+    network: str,
+    agent_address: str,
+    evm_factory_provider,
+    gas_estimator: GasEstimator
+) -> EVMTransaction:
+    web3 = evm_factory_provider.get_provider(network=network)
+    if not web3:
+        raise ValueError("Web3 provider is not initialized.")
+
+    chain_id = web3.eth.chain_id
+    nonce = web3.eth.get_transaction_count(Web3.to_checksum_address(agent_address), block_identifier="pending")
+    fees = gas_estimator.get_eip1559_fees(network=network)
+    print(f"Estimated fees for {network}: {fees}")
+    tx = EVMTransaction(
+        chain_id=chain_id,
+        nonce=nonce,
+        gas_limit=0,  # lo llenarás con estimate_gas cuando tengas to/data
+        max_fee_per_gas=fees["max_fee_per_gas"],
+        max_priority_fee_per_gas=fees["max_priority_fee_per_gas"],
+        to=None,
+        value=0,
+        input=[],        
+        access_list=[],  
+    )
+    return tx
