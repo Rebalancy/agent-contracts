@@ -34,4 +34,5 @@ pub struct RebalancerArgs {
     pub source_chain: ChainId,
     pub destination_chain: ChainId,
     pub partial_transaction: EVMTransaction,
+    pub cross_chain_a_token_balance: Option<u128>,
 }

@@ -1,15 +1,7 @@
-// In `src/tx_builders.rs`
 use crate::encoders;
 use crate::types::{AaveArgs, AaveConfig, CCTPArgs, RebalancerArgs};
 use alloy_primitives::{Address, B256, U256};
 use std::str::FromStr;
-
-pub fn build_invest_tx(args: RebalancerArgs) -> Vec<u8> {
-    let input = encoders::rebalancer::vault::encode_invest(args.amount);
-    let mut tx = args.partial_transaction;
-    tx.input = input;
-    tx.build_for_signing().try_into().unwrap()
-}
 
 pub fn build_cctp_burn_tx(args: CCTPArgs) -> Vec<u8> {
     let input = encoders::cctp::messenger::encode_deposit_for_burn(
@@ -21,9 +13,7 @@ pub fn build_cctp_burn_tx(args: CCTPArgs) -> Vec<u8> {
         U256::from(args.max_fee),
         args.min_finality_threshold,
     );
-    let mut tx = args.partial_burn_transaction;
-    tx.input = input;
-    tx.build_for_signing().try_into().unwrap()
+    input
 }
 
 pub fn build_cctp_mint_tx(args: CCTPArgs) -> Vec<u8> {
@@ -31,24 +21,44 @@ pub fn build_cctp_mint_tx(args: CCTPArgs) -> Vec<u8> {
         args.message.clone(),
         args.attestation.clone(),
     );
-    let mut tx = args.partial_mint_transaction;
-    tx.input = input;
-    tx.build_for_signing().try_into().unwrap()
+    input
 }
 
-pub fn build_aave_tx(args: AaveArgs, config: AaveConfig) -> Vec<u8> {
+pub fn build_aave_supply_tx(args: AaveArgs, config: AaveConfig) -> Vec<u8> {
     let input = encoders::aave::lending_pool::encode_supply(
         Address::from_str(&config.asset).expect("Invalid asset address"),
         U256::from(args.amount),
         Address::from_str(&config.on_behalf_of).expect("Invalid on_behalf_of address"),
         config.referral_code,
     );
-    let mut tx = args.partial_transaction;
-    tx.input = input;
-    tx.build_for_signing().try_into().unwrap()
+    input
 }
 
-// In `tests/test_tx_builders.rs`
+pub fn build_aave_withdraw_tx(args: AaveArgs, config: AaveConfig) -> Vec<u8> {
+    let input = encoders::aave::lending_pool::encode_withdraw(
+        Address::from_str(&config.asset).expect("Invalid asset address"),
+        U256::from(args.amount),
+        Address::from_str(&config.on_behalf_of).expect("Invalid on_behalf_of address"),
+    );
+    input
+}
+
+pub fn build_withdraw_for_crosschain_allocation_tx(args: RebalancerArgs) -> Vec<u8> {
+    let input = encoders::rebalancer::vault::encode_withdraw_for_crosschain_allocation(
+        args.amount,
+        args.cross_chain_a_token_balance.unwrap_or(0),
+    );
+    input
+}
+
+pub fn build_return_funds_tx(args: RebalancerArgs) -> Vec<u8> {
+    let input = encoders::rebalancer::vault::encode_return_funds(
+        args.amount,
+        args.cross_chain_a_token_balance.unwrap_or(0),
+    );
+    input
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -72,15 +82,35 @@ mod tests {
     }
 
     #[test]
-    fn test_build_invest_tx() {
-        let args = RebalancerArgs {
-            amount: 1234,
-            source_chain: 1,
-            destination_chain: 1,
+    fn test_build_aave_supply_tx() {
+        let args = AaveArgs {
+            amount: 500,
             partial_transaction: dummy_tx(),
         };
-        let payload = build_invest_tx(args);
-        println!("invest payload: {}", encode(&payload));
+        let config = AaveConfig {
+            asset: "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2".to_string(),
+            on_behalf_of: "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2".to_string(),
+            referral_code: 0,
+            lending_pool_address: "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2".to_string(),
+        };
+        let payload = build_aave_supply_tx(args, config);
+
+        assert!(!payload.is_empty());
+    }
+
+    #[test]
+    fn test_build_aave_withdraw_tx() {
+        let args = AaveArgs {
+            amount: 500,
+            partial_transaction: dummy_tx(),
+        };
+        let config = AaveConfig {
+            asset: "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2".to_string(),
+            on_behalf_of: "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2".to_string(),
+            referral_code: 0,
+            lending_pool_address: "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2".to_string(),
+        };
+        let payload = build_aave_withdraw_tx(args, config);
         assert!(!payload.is_empty());
     }
 
@@ -104,32 +134,51 @@ mod tests {
         assert!(!payload.is_empty());
     }
 
-    // #[test]
-    // fn test_build_cctp_mint_tx() {
-    //     let args = CCTPArgs {
-    //         message: vec![0xde, 0xad],
-    //         attestation: vec![0xbe, 0xef],
-    //         ..Default::default()
-    //     };
-    //     let payload = build_cctp_mint_tx(&args);
-    //     println!("mint payload: {}", encode(&payload));
-    //     assert!(!payload.is_empty());
-    // }
+    #[test]
+    fn test_build_cctp_mint_tx() {
+        let args = CCTPArgs {
+            amount: 1000,
+            destination_domain: 100,
+            mint_recipient: format!("{:0>64}", "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"),
+            burn_token: "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2".to_string(),
+            destination_caller: format!("{:0>64}", "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"),
+            max_fee: 0,
+            min_finality_threshold: 0,
+            partial_burn_transaction: dummy_tx(),
+            partial_mint_transaction: dummy_tx(),
+            message: vec![0xde, 0xad],
+            attestation: vec![0xbe, 0xef],
+        };
+        let payload = build_cctp_mint_tx(args);
+        println!("mint payload: {}", encode(&payload));
+        assert!(!payload.is_empty());
+    }
 
     #[test]
-    fn test_build_aave_tx() {
-        let args = AaveArgs {
-            amount: 500,
+    fn test_build_withdraw_for_crosschain_allocation_tx() {
+        let args = RebalancerArgs {
+            amount: 1234,
+            source_chain: 1,
+            destination_chain: 1,
             partial_transaction: dummy_tx(),
+            cross_chain_a_token_balance: Some(5000),
         };
-        let config = AaveConfig {
-            asset: "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2".to_string(),
-            on_behalf_of: "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2".to_string(),
-            referral_code: 0,
-            lending_pool_address: "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2".to_string(),
+        let payload = build_withdraw_for_crosschain_allocation_tx(args);
+        println!("withdraw payload: {}", encode(&payload));
+        assert!(!payload.is_empty());
+    }
+
+    #[test]
+    fn test_build_return_funds_tx() {
+        let args = RebalancerArgs {
+            amount: 1234,
+            source_chain: 1,
+            destination_chain: 1,
+            partial_transaction: dummy_tx(),
+            cross_chain_a_token_balance: Some(5000),
         };
-        let payload = build_aave_tx(args, config);
-        println!("aave payload: {}", encode(&payload));
+        let payload = build_return_funds_tx(args);
+        println!("return funds payload: {}", encode(&payload));
         assert!(!payload.is_empty());
     }
 }

@@ -1,8 +1,9 @@
-use near_sdk::Gas;
+use near_sdk::{Gas, NearToken};
 
-pub const MPC_CONTRACT_ACCOUNT_ID: &str = "v1.signer-prod.testnet"; // PRODUCTION: "v1.signer"
-pub const GAS: Gas = Gas::from_tgas(80);
+pub const MPC_CONTRACT_ACCOUNT_ID: &str = "v1.signer";
+pub const MPC_CONTRACT_ACCOUNT_ID_TESTNET: &str = "v1.signer-prod.testnet";
 pub const PATH: &str = "ethereum-1";
 pub const KEY_VERSION: u32 = 0;
-pub const CALLBACK_GAS: Gas = Gas::from_tgas(90);
-pub const AAVE_LENDING_POOL_ADDRESS: &str = "0x7d2768de84f9a91b2c744cf0f0865d2e4b30f4bf"; // Mainnet Aave Lending Pool address
+pub const CALLBACK_GAS: Gas = Gas::from_tgas(50);
+pub const OPERATIONS_TIMEOUT: u64 = 5 * 60 * 1000; // 5 minutes timeout
+pub const ATTACHED_DEPOSIT: NearToken = NearToken::from_yoctonear(500000000000000000000000);
