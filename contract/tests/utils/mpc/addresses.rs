@@ -52,7 +52,7 @@ pub fn derive_key(public_key: PublicKey, epsilon: Scalar) -> PublicKey {
     (<Secp256k1 as CurveArithmetic>::ProjectivePoint::GENERATOR * epsilon + public_key).to_affine()
 }
 
-const ROOT_PUBLIC_KEY: &str = "secp256k1:4NfTiv3UsGahebgTaHyD9vF8KYKMBnfd6kh94mK6xv8fGBiJB8TBtFMP5WWXz6B89Ac1fbpzPwAvoyQebemHFwx3";
+pub const ROOT_PUBLIC_KEY: &str = "secp256k1:4NfTiv3UsGahebgTaHyD9vF8KYKMBnfd6kh94mK6xv8fGBiJB8TBtFMP5WWXz6B89Ac1fbpzPwAvoyQebemHFwx3";
 
 /// Contains the derived address as string and the public key
 /// that was used to derive the address
@@ -80,7 +80,7 @@ pub fn get_derived_address_for_evm(predecessor_id: &AccountId, path: &str) -> De
 }
 
 /// Converts a string-encoded public key to a public key (AffinePoint) non compressed
-fn convert_string_to_public_key(encoded: &str) -> Result<PublicKey, String> {
+pub fn convert_string_to_public_key(encoded: &str) -> Result<PublicKey, String> {
     let base58_part = encoded.strip_prefix("secp256k1:").ok_or("Invalid prefix")?;
 
     let mut decoded_bytes = bs58::decode(base58_part)
