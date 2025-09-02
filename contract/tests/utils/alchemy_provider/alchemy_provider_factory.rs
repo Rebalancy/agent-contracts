@@ -33,7 +33,7 @@ impl AlchemyFactoryProvider {
         }
     }
 
-    fn alchemy_url_for(&self, network: Network) -> Result<String, String> {
+    pub fn alchemy_url_for(&self, network: Network) -> Result<String, String> {
         if !self.supported.contains(&network) {
             return Err(format!("Network {} not supported", network.alchemy_slug()));
         }
