@@ -4,8 +4,8 @@ use crate::{
     constants::{KEY_VERSION, PATH},
     external::this_contract,
     types::{
-        AaveArgs, ActiveSession, ActivityLog, AgentActionType, CCTPArgs, CacheKey, ChainConfig,
-        ChainId, Config, Flow, PayloadType, RebalancerArgs, Step, Worker,
+        AaveArgs, ActiveSession, ActivityLog, AgentActionType, CCTPBurnArgs, CCTPMintArgs,
+        CacheKey, ChainConfig, ChainId, Config, Flow, PayloadType, RebalancerArgs, Step, Worker,
     },
 };
 use alloy_primitives::Address;
@@ -223,7 +223,7 @@ impl Contract {
         self.trigger_signature(Step::AaveWithdraw, tx, callback_gas_tgas)
     }
 
-    pub fn build_cctp_burn_tx(&mut self, args: CCTPArgs, callback_gas_tgas: u64) -> Promise {
+    pub fn build_cctp_burn_tx(&mut self, args: CCTPBurnArgs, callback_gas_tgas: u64) -> Promise {
         self.assert_agent_is_calling();
         let cfg = self.get_chain_config_for_step(Step::CCTPBurn);
 
@@ -238,7 +238,7 @@ impl Contract {
         self.trigger_signature(Step::CCTPBurn, tx, callback_gas_tgas)
     }
 
-    pub fn build_cctp_mint_tx(&mut self, args: CCTPArgs, callback_gas_tgas: u64) -> Promise {
+    pub fn build_cctp_mint_tx(&mut self, args: CCTPMintArgs, callback_gas_tgas: u64) -> Promise {
         self.assert_agent_is_calling();
         let cfg = self.get_chain_config_for_step(Step::CCTPMint);
 

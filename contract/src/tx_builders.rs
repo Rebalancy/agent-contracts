@@ -1,9 +1,9 @@
 use crate::encoders;
-use crate::types::{AaveArgs, AaveConfig, CCTPArgs, RebalancerArgs};
+use crate::types::{AaveArgs, AaveConfig, CCTPBurnArgs, CCTPMintArgs, RebalancerArgs};
 use alloy_primitives::{Address, B256, U256};
 use std::str::FromStr;
 
-pub fn build_cctp_burn_tx(args: CCTPArgs) -> Vec<u8> {
+pub fn build_cctp_burn_tx(args: CCTPBurnArgs) -> Vec<u8> {
     let input = encoders::cctp::messenger::encode_deposit_for_burn(
         U256::from(args.amount),
         args.destination_domain,
@@ -16,7 +16,7 @@ pub fn build_cctp_burn_tx(args: CCTPArgs) -> Vec<u8> {
     input
 }
 
-pub fn build_cctp_mint_tx(args: CCTPArgs) -> Vec<u8> {
+pub fn build_cctp_mint_tx(args: CCTPMintArgs) -> Vec<u8> {
     let input = encoders::cctp::transmitter::encode_receive_message(
         args.message.clone(),
         args.attestation.clone(),
@@ -116,7 +116,7 @@ mod tests {
 
     #[test]
     fn test_build_cctp_burn_tx() {
-        let args = CCTPArgs {
+        let args = CCTPBurnArgs {
             amount: 1000,
             destination_domain: 100,
             mint_recipient: format!("{:0>64}", "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"),
@@ -124,10 +124,7 @@ mod tests {
             destination_caller: format!("{:0>64}", "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"),
             max_fee: 0,
             min_finality_threshold: 0,
-            message: vec![],
-            attestation: vec![],
             partial_burn_transaction: dummy_tx(),
-            partial_mint_transaction: dummy_tx(),
         };
         let payload = build_cctp_burn_tx(args);
         println!("burn payload: {}", encode(&payload));
@@ -136,15 +133,7 @@ mod tests {
 
     #[test]
     fn test_build_cctp_mint_tx() {
-        let args = CCTPArgs {
-            amount: 1000,
-            destination_domain: 100,
-            mint_recipient: format!("{:0>64}", "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"),
-            burn_token: "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2".to_string(),
-            destination_caller: format!("{:0>64}", "87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"),
-            max_fee: 0,
-            min_finality_threshold: 0,
-            partial_burn_transaction: dummy_tx(),
+        let args = CCTPMintArgs {
             partial_mint_transaction: dummy_tx(),
             message: vec![0xde, 0xad],
             attestation: vec![0xbe, 0xef],
@@ -158,8 +147,6 @@ mod tests {
     fn test_build_withdraw_for_crosschain_allocation_tx() {
         let args = RebalancerArgs {
             amount: 1234,
-            source_chain: 1,
-            destination_chain: 1,
             partial_transaction: dummy_tx(),
             cross_chain_a_token_balance: Some(5000),
         };
@@ -172,8 +159,6 @@ mod tests {
     fn test_build_return_funds_tx() {
         let args = RebalancerArgs {
             amount: 1234,
-            source_chain: 1,
-            destination_chain: 1,
             partial_transaction: dummy_tx(),
             cross_chain_a_token_balance: Some(5000),
         };
