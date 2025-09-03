@@ -273,20 +273,20 @@ impl Contract {
 
         let mut tx = rebalancer_args.clone().partial_transaction;
         tx.input = tx_builders::build_withdraw_for_crosschain_allocation_tx(rebalancer_args);
-        tx.to = Some(
-            Address::from_str(&cfg.rebalancer.vault_address)
-                .expect("Invalid vault")
-                .into_array(),
-        );
+        // tx.to = Some(
+        //     Address::from_str(&cfg.rebalancer.vault_address)
+        //         .expect("Invalid vault")
+        //         .into_array(),
+        // );
 
-        env::log_str(&format!(
-            "[DEBUG] -> tx.to (después de asignar): {:?}",
-            tx.to
-        ));
-        env::log_str(&format!(
-            "[DEBUG] -> vault_address string: {}",
-            cfg.rebalancer.vault_address
-        ));
+        // env::log_str(&format!(
+        //     "[DEBUG] -> tx.to (después de asignar): {:?}",
+        //     tx.to
+        // ));
+        // env::log_str(&format!(
+        //     "[DEBUG] -> vault_address string: {}",
+        //     cfg.rebalancer.vault_address
+        // ));
 
         self.trigger_signature(Step::RebalancerWithdrawToAllocate, tx, callback_gas_tgas)
     }
