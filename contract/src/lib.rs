@@ -85,6 +85,11 @@ impl Contract {
         tx_type: u8,
         ethereum_tx: EVMTransaction,
     ) -> Vec<u8> {
+        env::log_str(&format!(
+            "[DEBUG] -> Entró a sign_callback | ethereum_tx.to: {:?}",
+            ethereum_tx.to
+        ));
+
         // Ensure the callback corresponds to the active session.
         let nonce = self.get_active_session().nonce;
         require!(nonce_from_promise == nonce, "Nonce mismatch in callback");
@@ -261,6 +266,11 @@ impl Contract {
         self.assert_agent_is_calling();
         let cfg = self.get_chain_config_for_step(Step::RebalancerWithdrawToAllocate);
 
+        env::log_str(&format!(
+            "[DEBUG] -> Entró a build_withdraw_for_crosschain_allocation_tx | to (antes): {:?}",
+            rebalancer_args.partial_transaction.to
+        ));
+
         let mut tx = rebalancer_args.clone().partial_transaction;
         tx.input = tx_builders::build_withdraw_for_crosschain_allocation_tx(rebalancer_args);
         tx.to = Some(
@@ -268,6 +278,15 @@ impl Contract {
                 .expect("Invalid vault")
                 .into_array(),
         );
+
+        env::log_str(&format!(
+            "[DEBUG] -> tx.to (después de asignar): {:?}",
+            tx.to
+        ));
+        env::log_str(&format!(
+            "[DEBUG] -> vault_address string: {}",
+            cfg.rebalancer.vault_address
+        ));
 
         self.trigger_signature(Step::RebalancerWithdrawToAllocate, tx, callback_gas_tgas)
     }
@@ -308,6 +327,11 @@ impl Contract {
                 env::panic_str("Signature already cached for this step");
             }
         }
+
+        env::log_str(&format!(
+            "[DEBUG] -> trigger_signature | payload_hash: {:?}, step: {:?}",
+            payload_hash, step
+        ));
 
         ecdsa::get_sig(payload_hash, PATH.to_string(), KEY_VERSION).then(
             this_contract::ext(env::current_account_id())
