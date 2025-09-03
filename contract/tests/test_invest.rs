@@ -181,7 +181,7 @@ async fn execute_rebalance_steps_on_destionation_chain(
     Ok(())
 }
 
-async fn execute_rebalance_steps_on_sourche_chain(
+async fn burn_for_bridge(
     deployer_account: NearAccount,
     rpc_url: String,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -191,52 +191,6 @@ async fn execute_rebalance_steps_on_sourche_chain(
     let friendly_json_rpc_client =
         FriendlyNearJsonRpcClient::new(NearNetworkConfig::Testnet, deployer_account.clone());
 
-    // 1) Start rebalance
-    let start_rebalancer_args = json!({
-        "flow": 1, // RebalancerToAave
-        "source_chain": ARBITRUM_CHAIN_ID_SEPOLIA,
-        "destination_chain": OPTIMISM_CHAIN_ID_SEPOLIA,
-        "expected_amount": USDC_AMOUNT,
-    });
-
-    let start_rebalance_result = friendly_json_rpc_client
-        .send_action(FunctionCallAction {
-            method_name: "start_rebalance".to_string(),
-            args: start_rebalancer_args.to_string().into_bytes(), // Convert directly to Vec<u8>
-            gas: 300000000000000,
-            deposit: 0,
-        })
-        .await?;
-
-    println!("Start rebalance result: {:?}", start_rebalance_result);
-
-    // 2) Withdraw for allocation
-    let tx_withdraw_for_allocation = build_transaction(&provider, agent_address).await?;
-
-    let withdraw_for_allocation_args = json!({
-        "args": {
-            "amount": USDC_AMOUNT,
-            "partial_transaction": tx_withdraw_for_allocation,
-            "cross_chain_a_token_balance": null
-        },
-        "callback_gas_tgas": 10
-    });
-
-    let withdraw_for_allocation_result = friendly_json_rpc_client
-        .send_action(FunctionCallAction {
-            method_name: "build_withdraw_for_crosschain_allocation_tx".to_string(),
-            args: withdraw_for_allocation_args.to_string().into_bytes(), // Convert directly to Vec<u8>
-            gas: 300000000000000,
-            deposit: 0,
-        })
-        .await?;
-
-    println!(
-        "Withdraw for allocation result: {:?}",
-        withdraw_for_allocation_result
-    );
-
-    // 3) Burn for bridge
     let partial_burn_tx = build_transaction(&provider, agent_address).await?;
 
     let burn_for_bridge_args = json!({
@@ -262,6 +216,73 @@ async fn execute_rebalance_steps_on_sourche_chain(
         })
         .await?;
     println!("Burn for bridge result: {:?}", burn_for_bridge_result);
+
+    Ok(())
+}
+
+async fn start_rebalance(deployer_account: NearAccount) -> Result<(), Box<dyn std::error::Error>> {
+    let friendly_json_rpc_client =
+        FriendlyNearJsonRpcClient::new(NearNetworkConfig::Testnet, deployer_account.clone());
+
+    // 1) Start rebalance
+    let start_rebalancer_args = json!({
+        "flow": "RebalancerToAave",
+        "source_chain": ARBITRUM_CHAIN_ID_SEPOLIA,
+        "destination_chain": OPTIMISM_CHAIN_ID_SEPOLIA,
+        "expected_amount": USDC_AMOUNT,
+    });
+
+    let start_rebalance_result = friendly_json_rpc_client
+        .send_action(FunctionCallAction {
+            method_name: "start_rebalance".to_string(),
+            args: start_rebalancer_args.to_string().into_bytes(), // Convert directly to Vec<u8>
+            gas: 300000000000000,
+            deposit: 0,
+        })
+        .await?;
+
+    println!("Start rebalance result: {:?}", start_rebalance_result);
+
+    Ok(())
+}
+
+async fn withdraw_funds_for_allocation(
+    deployer_account: NearAccount,
+    rpc_url: String,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let provider = ProviderBuilder::new().on_anvil_with_config(|anvil| anvil.fork(rpc_url.clone()));
+    let agent_address = get_agent_address(deployer_account.clone());
+
+    let friendly_json_rpc_client =
+        FriendlyNearJsonRpcClient::new(NearNetworkConfig::Testnet, deployer_account.clone());
+
+    let tx_withdraw_for_allocation = build_transaction(&provider, agent_address).await?;
+    print!(
+        "Built tx_withdraw_for_allocation: {:?}",
+        tx_withdraw_for_allocation
+    );
+    let withdraw_for_allocation_args = json!({
+        "rebalancer_args": {
+            "amount": USDC_AMOUNT,
+            "partial_transaction": tx_withdraw_for_allocation,
+            "cross_chain_a_token_balance": 1
+        },
+        "callback_gas_tgas": 10
+    });
+
+    let withdraw_for_allocation_result = friendly_json_rpc_client
+        .send_action(FunctionCallAction {
+            method_name: "build_withdraw_for_crosschain_allocation_tx".to_string(),
+            args: withdraw_for_allocation_args.to_string().into_bytes(), // Convert directly to Vec<u8>
+            gas: 300000000000000,
+            deposit: 0,
+        })
+        .await?;
+
+    println!(
+        "Withdraw for allocation result: {:?}",
+        withdraw_for_allocation_result
+    );
 
     Ok(())
 }
@@ -409,12 +430,21 @@ async fn full_flow_test() -> Result<(), Box<dyn std::error::Error>> {
     assert!(alchemy_provider.is_network_supported(&Network::ArbitrumSepolia));
 
     let deployer_account: NearAccount = get_user_account_info_from_file(None)?;
-    deploy_and_initialise(deployer_account.clone()).await?;
-    execute_rebalance_steps_on_sourche_chain(deployer_account.clone(), alchemy_url.clone()).await?;
-    execute_rebalance_steps_on_destionation_chain(deployer_account.clone(), alchemy_url).await?;
-    test_get_activity().await?;
-    test_get_allocations().await?;
-    test_get_signed_transactions().await?;
+
+    // TODO: Split into individual actions
+
+    // TODO: make a cache thing to avoid redeploying if it was deployed
+
+    // deploy_and_initialise(deployer_account.clone()).await?;
+
+    // start_rebalance(deployer_account.clone()).await?;
+    withdraw_funds_for_allocation(deployer_account.clone(), alchemy_url.clone()).await?;
+    // burn_for_bridge(deployer_account.clone(), alchemy_url.clone()).await?;
+    // execute_rebalance_steps_on_sourche_chain(deployer_account.clone()).await?;
+    // execute_rebalance_steps_on_destionation_chain(deployer_account.clone()).await?;
+    // test_get_activity().await?;
+    // test_get_allocations().await?;
+    // test_get_signed_transactions().await?;
     println!("Full flow test completed successfully.");
     Ok(())
 }

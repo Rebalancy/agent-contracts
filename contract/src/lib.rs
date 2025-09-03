@@ -255,14 +255,14 @@ impl Contract {
 
     pub fn build_withdraw_for_crosschain_allocation_tx(
         &mut self,
-        args: RebalancerArgs,
+        rebalancer_args: RebalancerArgs,
         callback_gas_tgas: u64,
     ) -> Promise {
         self.assert_agent_is_calling();
         let cfg = self.get_chain_config_for_step(Step::RebalancerWithdrawToAllocate);
 
-        let mut tx = args.clone().partial_transaction;
-        tx.input = tx_builders::build_withdraw_for_crosschain_allocation_tx(args);
+        let mut tx = rebalancer_args.clone().partial_transaction;
+        tx.input = tx_builders::build_withdraw_for_crosschain_allocation_tx(rebalancer_args);
         tx.to = Some(
             Address::from_str(&cfg.rebalancer.vault_address)
                 .expect("Invalid vault")

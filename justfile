@@ -7,7 +7,7 @@ build-contract:
 
 test:
     echo "Running tests..."
-    cd contract && cargo test
+    cd contract && cargo test -- --nocapture
 
 build-with-docker:
     cd contract && cargo near build reproducible-wasm --variant force_bulk_memory   
