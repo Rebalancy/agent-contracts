@@ -118,69 +118,6 @@ fn get_agent_address(deployer_account: NearAccount) -> Address {
     Address::from_str(&agent_address).unwrap()
 }
 
-async fn execute_rebalance_steps_on_destionation_chain(
-    deployer_account: NearAccount,
-    rpc_url: String,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let provider = ProviderBuilder::new().on_anvil_with_config(|anvil| anvil.fork(rpc_url.clone()));
-    let agent_address = get_agent_address(deployer_account.clone());
-
-    let friendly_json_rpc_client =
-        FriendlyNearJsonRpcClient::new(NearNetworkConfig::Testnet, deployer_account.clone());
-
-    // @dev: Ideally we should try to get the attestation from the Circle API here but we just test the signature creation.
-
-    // 4) Mint on destination chain
-    let mint_for_bridge_args = json!({
-        "args": {
-            "message": [], // TODO: Fill in with actual message from Circle API
-            "attestation": [], // TODO: Fill in with actual attestation from Circle API
-            "partial_mint_transaction": build_transaction(&provider, agent_address).await?,
-        },
-        "callback_gas_tgas": 10,
-    });
-
-    let mint_on_destination_chain_result = friendly_json_rpc_client
-        .send_action(FunctionCallAction {
-            method_name: "build_cctp_mint_tx".to_string(),
-            args: mint_for_bridge_args.to_string().into_bytes(), // Convert directly to Vec<u8>
-            gas: 300000000000000,
-            deposit: 0,
-        })
-        .await?;
-
-    println!(
-        "Mint on destination chain result: {:?}",
-        mint_on_destination_chain_result
-    );
-
-    // 5) Deposit to Aave on destination chain
-    let deposit_to_aave_args = json!({
-        "args": {
-            "amount": USDC_AMOUNT,
-            "partial_transaction": build_transaction(&provider, agent_address).await?
-        },
-        "callback_gas_tgas": 10
-    });
-    let deposit_to_aave_result = friendly_json_rpc_client
-        .send_action(FunctionCallAction {
-            method_name: "build_aave_supply_tx".to_string(),
-            args: deposit_to_aave_args.to_string().into_bytes(), // Convert directly to Vec<u8>
-            gas: 300000000000000,
-            deposit: 0,
-        })
-        .await?;
-
-    println!(
-        "Deposit to Aave on destination chain result: {:?}",
-        deposit_to_aave_result
-    );
-
-    // 6) TODO: Complete rebalance???
-
-    Ok(())
-}
-
 async fn burn_for_bridge(
     deployer_account: NearAccount,
     rpc_url: String,
@@ -283,6 +220,88 @@ async fn withdraw_funds_for_allocation(
         "Withdraw for allocation result: {:?}",
         withdraw_for_allocation_result
     );
+
+    Ok(())
+}
+
+async fn get_attestation_from_circle_api() -> Result<(), Box<dyn std::error::Error>> {
+}
+
+async fn mint_for_bridge(
+    deployer_account: NearAccount,
+    rpc_url: String,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let provider = ProviderBuilder::new().on_anvil_with_config(|anvil| anvil.fork(rpc_url.clone()));
+    let agent_address = get_agent_address(deployer_account.clone());
+
+    let friendly_json_rpc_client =
+        FriendlyNearJsonRpcClient::new(NearNetworkConfig::Testnet, deployer_account.clone());
+
+    // Mint on destination chain
+    let mint_for_bridge_args = json!({
+        "args": {
+            "message": [], // TODO: Fill in with actual message from Circle API
+            "attestation": [], // TODO: Fill in with actual attestation from Circle API
+            "partial_mint_transaction": build_transaction(&provider, agent_address).await?,
+        },
+        "callback_gas_tgas": 10,
+    });
+
+    let mint_on_destination_chain_result = friendly_json_rpc_client
+        .send_action(FunctionCallAction {
+            method_name: "build_cctp_mint_tx".to_string(),
+            args: mint_for_bridge_args.to_string().into_bytes(), // Convert directly to Vec<u8>
+            gas: 300000000000000,
+            deposit: 0,
+        })
+        .await?;
+
+    println!(
+        "Mint on destination chain result: {:?}",
+        mint_on_destination_chain_result
+    );
+
+    Ok(())
+}
+
+
+async fn aave_supply(
+    deployer_account: NearAccount,
+    rpc_url: String,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let provider = ProviderBuilder::new().on_anvil_with_config(|anvil| anvil.fork(rpc_url.clone()));
+    let agent_address = get_agent_address(deployer_account.clone());
+
+    let friendly_json_rpc_client =
+        FriendlyNearJsonRpcClient::new(NearNetworkConfig::Testnet, deployer_account.clone());
+
+    // Deposit to Aave on destination chain
+    let deposit_to_aave_args = json!({
+        "args": {
+            "amount": USDC_AMOUNT,
+            "partial_transaction": build_transaction(&provider, agent_address).await?
+        },
+        "callback_gas_tgas": 10
+    });
+    let deposit_to_aave_result = friendly_json_rpc_client
+        .send_action(FunctionCallAction {
+            method_name: "build_aave_supply_tx".to_string(),
+            args: deposit_to_aave_args.to_string().into_bytes(), // Convert directly to Vec<u8>
+            gas: 300000000000000,
+            deposit: 0,
+        })
+        .await?;
+
+    println!(
+        "Deposit to Aave on destination chain result: {:?}",
+        deposit_to_aave_result
+    );
+
+    Ok(())
+}
+
+async fn complete_rebalance(deployer_account: NearAccount,
+    rpc_url: String) -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
@@ -431,16 +450,12 @@ async fn full_flow_test() -> Result<(), Box<dyn std::error::Error>> {
 
     let deployer_account: NearAccount = get_user_account_info_from_file(None)?;
 
-    // TODO: Split into individual actions
-
     // TODO: make a cache thing to avoid redeploying if it was deployed
 
-    // deploy_and_initialise(deployer_account.clone()).await?;
-    // start_rebalance(deployer_account.clone()).await?;
+    deploy_and_initialise(deployer_account.clone()).await?;
+    start_rebalance(deployer_account.clone()).await?;
     withdraw_funds_for_allocation(deployer_account.clone(), alchemy_url.clone()).await?;
-    // burn_for_bridge(deployer_account.clone(), alchemy_url.clone()).await?;
-    // execute_rebalance_steps_on_sourche_chain(deployer_account.clone()).await?;
-    // execute_rebalance_steps_on_destionation_chain(deployer_account.clone()).await?;
+    burn_for_bridge(deployer_account.clone(), alchemy_url.clone()).await?;
     // test_get_activity().await?;
     // test_get_allocations().await?;
     // test_get_signed_transactions().await?;
