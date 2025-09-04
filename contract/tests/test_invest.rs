@@ -224,8 +224,7 @@ async fn withdraw_funds_for_allocation(
     Ok(())
 }
 
-async fn get_attestation_from_circle_api() -> Result<(), Box<dyn std::error::Error>> {
-}
+async fn get_attestation_from_circle_api() -> Result<(), Box<dyn std::error::Error>> {}
 
 async fn mint_for_bridge(
     deployer_account: NearAccount,
@@ -264,7 +263,6 @@ async fn mint_for_bridge(
     Ok(())
 }
 
-
 async fn aave_supply(
     deployer_account: NearAccount,
     rpc_url: String,
@@ -300,9 +298,10 @@ async fn aave_supply(
     Ok(())
 }
 
-async fn complete_rebalance(deployer_account: NearAccount,
-    rpc_url: String) -> Result<(), Box<dyn std::error::Error>> {
-
+async fn complete_rebalance(
+    deployer_account: NearAccount,
+    rpc_url: String,
+) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
