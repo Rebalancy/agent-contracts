@@ -81,7 +81,7 @@ impl Contract {
     pub fn sign_callback(
         &mut self,
         #[callback_result] call_result: Result<SignatureResponse, PromiseError>,
-        nonce_from_promise: u64,
+        nonce: u64,
         tx_type: u8,
         ethereum_tx: EVMTransaction,
     ) -> Vec<u8> {
@@ -91,8 +91,8 @@ impl Contract {
         ));
 
         // Ensure the callback corresponds to the active session.
-        let nonce = self.get_active_session().nonce;
-        require!(nonce_from_promise == nonce, "Nonce mismatch in callback");
+        let nonce_from_session = self.get_active_session().nonce;
+        require!(nonce == nonce_from_session, "Nonce mismatch in callback");
 
         let step =
             PayloadType::try_from(tx_type).unwrap_or_else(|_| env::panic_str("Unknown tx_type"));

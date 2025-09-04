@@ -435,8 +435,8 @@ async fn full_flow_test() -> Result<(), Box<dyn std::error::Error>> {
 
     // TODO: make a cache thing to avoid redeploying if it was deployed
 
-    deploy_and_initialise(deployer_account.clone()).await?;
-    start_rebalance(deployer_account.clone()).await?;
+    // deploy_and_initialise(deployer_account.clone()).await?;
+    // start_rebalance(deployer_account.clone()).await?;
     withdraw_funds_for_allocation(deployer_account.clone(), alchemy_url.clone()).await?;
     // burn_for_bridge(deployer_account.clone(), alchemy_url.clone()).await?;
     // execute_rebalance_steps_on_sourche_chain(deployer_account.clone()).await?;
