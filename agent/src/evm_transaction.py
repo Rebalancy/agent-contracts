@@ -3,6 +3,8 @@ from dataclasses import dataclass
 
 from web3 import Web3
 from gas_estimator import GasEstimator
+from near_omni_client.providers.interfaces.iprovider_factory import IProviderFactory
+from near_omni_client.networks import Network
 
 @dataclass
 class EVMTransaction:
@@ -43,9 +45,9 @@ def get_empty_tx_for_chain(chain_id: int) -> EVMTransaction:
     )
 
 def create_partial_tx(
-    network: str,
+    network: Network,
     agent_address: str,
-    evm_factory_provider,
+    evm_factory_provider: IProviderFactory,
     gas_estimator: GasEstimator
 ) -> EVMTransaction:
     web3 = evm_factory_provider.get_provider(network=network)
@@ -55,11 +57,11 @@ def create_partial_tx(
     chain_id = web3.eth.chain_id
     nonce = web3.eth.get_transaction_count(Web3.to_checksum_address(agent_address), block_identifier="pending")
     fees = gas_estimator.get_eip1559_fees(network=network)
-    print(f"Estimated fees for {network}: {fees}")
+
     tx = EVMTransaction(
         chain_id=chain_id,
         nonce=nonce,
-        gas_limit=0,  # lo llenarás con estimate_gas cuando tengas to/data
+        gas_limit=0,  # placeholder, to be estimated laterp
         max_fee_per_gas=fees["max_fee_per_gas"],
         max_priority_fee_per_gas=fees["max_priority_fee_per_gas"],
         to=None,
