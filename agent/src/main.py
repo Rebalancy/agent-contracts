@@ -33,11 +33,6 @@ async def main():
 
     one_time_signer_private_key = os.getenv("ONE_TIME_SIGNER_PRIVATE_KEY", "your_private_key_here")
     one_time_signer_account_id = os.getenv("ONE_TIME_SIGNER_ACCOUNT_ID", "your_account_id_here")
-    one_time_signer_public_key = os.getenv("ONE_TIME_SIGNER_PUBLIC_KEY", "your_public_key_here")
-
-    # print("one_time_signer_private_key:", one_time_signer_private_key)
-    # print("one_time_signer_account_id:", one_time_signer_account_id)
-    # print("one_time_signer_public_key:", one_time_signer_public_key)
 
     near_network = Network.parse(near_network)
     near_factory_provider = NearFactoryProvider()
@@ -67,6 +62,9 @@ async def main():
         args={}
     )
 
+    def no_allocations_found():
+        return all(v == 0 for v in current_allocations.values())
+
     current_allocations = parse_chain_balances(current_allocations_raw)
     print("Current Allocations:", current_allocations)
     
@@ -86,27 +84,23 @@ async def main():
         supported_networks=[Network.OPTIMISM_SEPOLIA, Network.ARBITRUM_SEPOLIA],
     )
 
-    if all(v == 0 for v in current_allocations.values()):
+    if no_allocations_found():
         print("⚠️ No prior rebalance detected. Fetching totalAssets from source chain...")
-
         web3 = mpc_wallet.get_web3(from_chain_id_to_network(source_chain_id))
         contract = web3.eth.contract(address=vault_address, abi=get_vault_abi())
         total_assets_under_management = contract.functions.totalAssets().call()
         print(f"🔁 Using Total Assets Under Management from source chain ({source_chain_id}): {total_assets_under_management}")
-
         current_allocations[source_chain_id] = total_assets_under_management
 
     print("Current Allocations after fetching totalAssets:", current_allocations)
-    
-    override_rates= os.getenv("OVERRIDE_INTEREST_RATES", "{}")
+
+    override_rates = os.getenv("OVERRIDE_INTEREST_RATES", "{}")
 
     try:
         override_interest_rates_raw = json.loads(override_rates)
         override_interest_rates = {int(k): v for k, v in override_interest_rates_raw.items()}
     except json.JSONDecodeError:
         raise ValueError("OVERRIDE_INTEREST_RATES must be a valid JSON dictionary.")
-
-    # print("Override Interest Rates:", override_interest_rates)
 
     extra_data_for_optimization = await get_extra_data_for_optimization(total_assets_under_management, mpc_wallet, current_allocations, configs, override_interest_rates)
 
