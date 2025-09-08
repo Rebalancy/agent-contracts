@@ -11,14 +11,15 @@ from near_omni_client.wallets import MPCWallet
 from near_omni_client.wallets.near_wallet import NearWallet
 from near_omni_client.crypto.keypair import KeyPair
 from near_omni_client.providers.near import NearFactoryProvider
-from near_omni_client.json_rpc.client import NearClient
 from near_omni_client.chain_signatures.kdf import Kdf
 from near_omni_client.chain_signatures.utils import get_evm_address
+
 from vault_abi import get_vault_abi
 from utils import from_chain_id_to_network, parse_chain_balances, parse_chain_configs, parse_u32_result, to_usdc_units
 from optimizer_data_fetcher import get_extra_data_for_optimization
 from optimizer import optimize_chain_allocation_with_direction
-from rebalancer import compute_rebalance_operations, execute_all_rebalances
+from rebalancer import compute_rebalance_operations
+from rebalancer_executor import execute_all_rebalance_operations
 
 PATH = "rebalancer.testnet"
 
@@ -87,7 +88,7 @@ async def main():
 
     if all(v == 0 for v in current_allocations.values()):
         print("⚠️ No prior rebalance detected. Fetching totalAssets from source chain...")
-        
+
         web3 = mpc_wallet.get_web3(from_chain_id_to_network(source_chain_id))
         contract = web3.eth.contract(address=vault_address, abi=get_vault_abi())
         total_assets_under_management = contract.functions.totalAssets().call()
@@ -98,6 +99,7 @@ async def main():
     print("Current Allocations after fetching totalAssets:", current_allocations)
     
     override_rates= os.getenv("OVERRIDE_INTEREST_RATES", "{}")
+
     try:
         override_interest_rates_raw = json.loads(override_rates)
         override_interest_rates = {int(k): v for k, v in override_interest_rates_raw.items()}
@@ -131,10 +133,12 @@ async def main():
         root_public_key_str=Kdf.get_root_public_key("testnet"), # TODO: FIX
         epsilon=Kdf.derive_epsilon(account_id=contract_id, path=PATH)
     )
+    
     agent_address = get_evm_address(agent_public_key)
     print(f"Agent Address: {agent_address}")
 
-    await execute_all_rebalances(
+    await execute_all_rebalance_operations(
+        source_chain_id=source_chain_id,
         rebalance_operations=rebalance_operations,
         near_client=near_client,
         evm_factory_provider=alchemy_factory_provider,
