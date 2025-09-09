@@ -75,6 +75,10 @@ impl Contract {
             .unwrap_or_default()
     }
 
+    pub fn get_signature(&self, nonce: u64, tx_type: TxType) -> Option<Vec<u8>> {
+        self.signatures_by_nonce_and_type.get(&(nonce, tx_type)).cloned()
+    }
+
     pub fn get_activity_log(&self) -> ActivityLog {
         let nonce = self.get_active_session().nonce;
         self.logs.get(&nonce).expect("Log not found").clone()
