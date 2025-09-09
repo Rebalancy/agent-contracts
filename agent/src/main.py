@@ -22,6 +22,7 @@ from rebalancer import compute_rebalance_operations
 from rebalancer_executor import execute_all_rebalance_operations
 from rebalancer_contract import RebalancerContract
 from strategy_manager import StrategyManager
+from gas_estimator import GasEstimator
 
 PATH = "rebalancer.testnet"
 
@@ -40,7 +41,18 @@ async def main():
     near_client = near_factory_provider.get_provider(near_network)
     alchemy_factory_provider = AlchemyFactoryProvider(api_key=alchemy_api_key)
 
-    rebalancer_contract = RebalancerContract(near_client, contract_id)
+    network_short_name = "testnet" if near_network == Network.NEAR_TESTNET else "mainnet"
+    agent_public_key = Kdf.derive_public_key(
+        root_public_key_str=Kdf.get_root_public_key(network_short_name),
+        epsilon=Kdf.derive_epsilon(account_id=contract_id, path=PATH)
+    )
+    
+    agent_evm_address = get_evm_address(agent_public_key)
+    print(f"Agent Address: {agent_evm_address}")
+
+    gas_estimator = GasEstimator(evm_factory_provider=alchemy_factory_provider)
+    rebalancer_contract = RebalancerContract(near_client, contract_id, agent_evm_address, gas_estimator=gas_estimator, evm_provider=alchemy_factory_provider)
+    
     configs = await rebalancer_contract.get_all_configs()
     source_chain_id = await rebalancer_contract.get_source_chain()
     current_allocations = await rebalancer_contract.get_allocations()
@@ -102,14 +114,6 @@ async def main():
     if not rebalance_operations:
         print("No rebalance operations needed.")
         return
-    
-    agent_public_key = Kdf.derive_public_key(
-        root_public_key_str=Kdf.get_root_public_key("testnet"), # TODO: FIX
-        epsilon=Kdf.derive_epsilon(account_id=contract_id, path=PATH)
-    )
-    
-    agent_address = get_evm_address(agent_public_key)
-    print(f"Agent Address: {agent_address}")
 
     # Configure Strategies
     StrategyManager.configure(rebalancer_contract=rebalancer_contract)
@@ -122,7 +126,6 @@ async def main():
         evm_factory_provider=alchemy_factory_provider,
         near_wallet=near_wallet,
         near_contract_id=contract_id,
-        agent_address=agent_address,
         max_bridge_fee=to_usdc_units(max_bridge_fee),
         min_finality_threshold=min_bridge_finality_threshold,
     )
