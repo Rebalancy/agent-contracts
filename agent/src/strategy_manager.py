@@ -1,6 +1,6 @@
 from typing import Dict
 from .types import Flow
-from .strategies import Strategy, AaveToAave # RebalancerToAave, AaveToRebalancer
+from .strategies import Strategy, AaveToAave, RebalancerToAave, AaveToRebalancer
 from .rebalancer_contract import RebalancerContract
 
 class StrategyManager:
@@ -9,9 +9,8 @@ class StrategyManager:
     @classmethod
     def configure(cls, *, rebalancer_contract: RebalancerContract) -> None:
         cls._strategies = {
-            # TODO: Uncomment when implementing Aave and Rebalancer strategies
-            # Flow.RebalancerToAave: RebalancerToAave(gateway=gateway, attestation_service=attestation_service),
-            # Flow.AaveToRebalancer: AaveToRebalancer(gateway=gateway, attestation_service=attestation_service),
+            Flow.RebalancerToAave: RebalancerToAave(rebalancer_contract=rebalancer_contract),
+            Flow.AaveToRebalancer: AaveToRebalancer(rebalancer_contract=rebalancer_contract),
             Flow.AaveToAave:       AaveToAave(rebalancer_contract=rebalancer_contract),
         }
 
