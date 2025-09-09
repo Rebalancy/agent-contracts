@@ -20,6 +20,8 @@ from optimizer_data_fetcher import get_extra_data_for_optimization
 from optimizer import optimize_chain_allocation_with_direction
 from rebalancer import compute_rebalance_operations
 from rebalancer_executor import execute_all_rebalance_operations
+from rebalancer_contract import RebalancerContract
+from strategy_manager import StrategyManager
 
 PATH = "rebalancer.testnet"
 
@@ -30,7 +32,6 @@ async def main():
     alchemy_api_key = os.getenv("ALCHEMY_API_KEY", "your_alchemy_api_key_here")
     max_bridge_fee = float(os.getenv("MAX_BRIDGE_FEE", "0.99"))
     min_bridge_finality_threshold = int(os.getenv("MIN_BRIDGE_FINALITY_THRESHOLD", "1000"))
-
     one_time_signer_private_key = os.getenv("ONE_TIME_SIGNER_PRIVATE_KEY", "your_private_key_here")
     one_time_signer_account_id = os.getenv("ONE_TIME_SIGNER_ACCOUNT_ID", "your_account_id_here")
 
@@ -38,36 +39,15 @@ async def main():
     near_factory_provider = NearFactoryProvider()
     near_client = near_factory_provider.get_provider(near_network)
     alchemy_factory_provider = AlchemyFactoryProvider(api_key=alchemy_api_key)
-    chain_config_raw = await near_client.call_contract(
-        contract_id=contract_id,
-        method="get_all_configs",
-        args={}
-    )
-    configs = parse_chain_configs(chain_config_raw)
-    
-    # print("Parsed Chain Configs:", configs)
 
-    source_chain_raw = await near_client.call_contract(
-        contract_id=contract_id,
-        method="get_source_chain",
-        args={}
-    )
-    source_chain_id = parse_u32_result(source_chain_raw)
-
-    # print("Source Chain ID:", source_chain_id)
-
-    current_allocations_raw = await near_client.call_contract(
-        contract_id=contract_id,
-        method="get_allocations",
-        args={}
-    )
+    rebalancer_contract = RebalancerContract(near_client, contract_id)
+    configs = await rebalancer_contract.get_all_configs()
+    source_chain_id = await rebalancer_contract.get_source_chain()
+    current_allocations = await rebalancer_contract.get_allocations()
 
     def no_allocations_found():
         return all(v == 0 for v in current_allocations.values())
 
-    current_allocations = parse_chain_balances(current_allocations_raw)
-    print("Current Allocations:", current_allocations)
-    
     source_chain_config = configs.get(source_chain_id, None)
     if not source_chain_config:
         raise ValueError(f"Source chain config for chain ID {source_chain_id} not found in configs.")
@@ -131,6 +111,10 @@ async def main():
     agent_address = get_evm_address(agent_public_key)
     print(f"Agent Address: {agent_address}")
 
+    # Configure Strategies
+    StrategyManager.configure(rebalancer_contract=rebalancer_contract)
+
+    # Execute Rebalance Operations 
     await execute_all_rebalance_operations(
         source_chain_id=source_chain_id,
         rebalance_operations=rebalance_operations,
