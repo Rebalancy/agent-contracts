@@ -6,15 +6,20 @@ from near_omni_client.json_rpc.client import NearClient
 from near_omni_client.wallets.near_wallet import NearWallet
 from near_omni_client.transactions import TransactionBuilder, ActionFactory
 from near_omni_client.transactions.utils import decode_key
-
+from near_omni_client.providers.interfaces import IProviderFactory
+from .evm_transaction import create_partial_tx
 from .types import Flow
-from .utils import parse_chain_configs, parse_u32_result, parse_chain_balances
+from .utils import from_chain_id_to_network, parse_chain_configs, parse_u32_result, parse_chain_balances
+from .gas_estimator import GasEstimator
 
 class RebalancerContract:
-    def __init__(self, near_client: NearClient, near_wallet: NearWallet, near_contract_id: str):
+    def __init__(self, near_client: NearClient, near_wallet: NearWallet, near_contract_id: str, agent_address: str, gas_estimator: GasEstimator, evm_provider: IProviderFactory) -> None:
         self.near_client = near_client
         self.near_contract_id = near_contract_id
         self.near_wallet = near_wallet
+        self.agent_address = agent_address
+        self.gas_estimator = gas_estimator
+        self.evm_provider = evm_provider
 
     async def get_all_configs(self):
         chain_config_raw = await self.near_client.call_contract(
@@ -66,11 +71,15 @@ class RebalancerContract:
         return nonce
         
 
-    async def build_withdraw_for_crosschain_allocation_tx(self, nonce: int, block_hash: str, source_chain: int, destination_chain: int, amount: int):
+    async def build_withdraw_for_crosschain_allocation_tx(self, nonce: int, source_chain: int, destination_chain: int, amount: int):
+        source_chain_as_network = from_chain_id_to_network(source_chain)
         args = {
-            "source_chain": source_chain,
-            "destination_chain": destination_chain,
-            "amount": amount
+            "rebalancer_args": {
+                "amount": 1,
+                "partial_transaction": create_partial_tx(source_chain_as_network, self.agent_address, self.evm_provider, self.gas_estimator),
+                "cross_chain_a_token_balance": None
+            },
+            "callback_gas_tgas": destination_chain
         }
         result = await self._sign_and_submit_transaction(
             method="withdraw_for_crosschain_allocation",

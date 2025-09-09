@@ -39,4 +39,3 @@ class GasEstimator:
             "max_priority_fee_per_gas": int(priority),
             "max_fee_per_gas": int(max_fee),
         }
-
