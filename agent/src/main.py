@@ -121,13 +121,7 @@ async def main():
     # Execute Rebalance Operations 
     await execute_all_rebalance_operations(
         source_chain_id=source_chain_id,
-        rebalance_operations=rebalance_operations,
-        near_client=near_client,
-        evm_factory_provider=alchemy_factory_provider,
-        near_wallet=near_wallet,
-        near_contract_id=contract_id,
-        max_bridge_fee=to_usdc_units(max_bridge_fee),
-        min_finality_threshold=min_bridge_finality_threshold,
+        rebalance_operations=rebalance_operations
     )
     print("Rebalance operations computed successfully.")
 
