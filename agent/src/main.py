@@ -15,7 +15,7 @@ from near_omni_client.chain_signatures.kdf import Kdf
 from near_omni_client.chain_signatures.utils import get_evm_address
 
 from vault_abi import get_vault_abi
-from utils import from_chain_id_to_network, parse_chain_balances, parse_chain_configs, parse_u32_result, to_usdc_units
+from utils import from_chain_id_to_network
 from optimizer_data_fetcher import get_extra_data_for_optimization
 from optimizer import optimize_chain_allocation_with_direction
 from rebalancer import compute_rebalance_operations
