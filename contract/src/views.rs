@@ -1,7 +1,7 @@
 use near_sdk::{near, AccountId};
 
 use crate::{
-    types::{ActiveSession, ActivityLog, ChainId, Config, Worker},
+    types::{ActiveSession, ActivityLog, ChainId, Config, Worker, CacheKey},
     {Contract, ContractExt},
 };
 
@@ -75,8 +75,9 @@ impl Contract {
             .unwrap_or_default()
     }
 
-    pub fn get_signature(&self, nonce: u64, tx_type: TxType) -> Option<Vec<u8>> {
-        self.signatures_by_nonce_and_type.get(&(nonce, tx_type)).cloned()
+    pub fn get_signature(&self, nonce: u64, tx_type: u8) -> Option<Vec<u8>> {
+        let cache_key = CacheKey { nonce, tx_type };
+        self.signatures_by_nonce_and_type.get(&cache_key).cloned()
     }
 
     pub fn get_activity_log(&self) -> ActivityLog {
