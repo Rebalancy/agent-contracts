@@ -146,7 +146,7 @@ async fn burn_for_bridge(
 
     let burn_for_bridge_result = friendly_json_rpc_client
         .send_action(FunctionCallAction {
-            method_name: "build_cctp_burn_tx".to_string(),
+            method_name: "build_and_sign_cctp_burn_tx".to_string(),
             args: burn_for_bridge_args.to_string().into_bytes(), // Convert directly to Vec<u8>
             gas: 300000000000000,
             deposit: 0,
@@ -209,7 +209,7 @@ async fn withdraw_funds_for_allocation(
 
     let withdraw_for_allocation_result = friendly_json_rpc_client
         .send_action(FunctionCallAction {
-            method_name: "build_withdraw_for_crosschain_allocation_tx".to_string(),
+            method_name: "build_and_sign_withdraw_for_crosschain_allocation_tx".to_string(),
             args: withdraw_for_allocation_args.to_string().into_bytes(), // Convert directly to Vec<u8>
             gas: 300000000000000,
             deposit: 0,
@@ -224,7 +224,7 @@ async fn withdraw_funds_for_allocation(
     Ok(())
 }
 
-async fn get_attestation_from_circle_api() -> Result<(), Box<dyn std::error::Error>> {}
+// async fn get_attestation_from_circle_api() -> Result<(), Box<dyn std::error::Error>> {}
 
 async fn mint_for_bridge(
     deployer_account: NearAccount,
@@ -248,7 +248,7 @@ async fn mint_for_bridge(
 
     let mint_on_destination_chain_result = friendly_json_rpc_client
         .send_action(FunctionCallAction {
-            method_name: "build_cctp_mint_tx".to_string(),
+            method_name: "build_and_sign_cctp_mint_tx".to_string(),
             args: mint_for_bridge_args.to_string().into_bytes(), // Convert directly to Vec<u8>
             gas: 300000000000000,
             deposit: 0,
@@ -283,7 +283,7 @@ async fn aave_supply(
     });
     let deposit_to_aave_result = friendly_json_rpc_client
         .send_action(FunctionCallAction {
-            method_name: "build_aave_supply_tx".to_string(),
+            method_name: "build_and_sign_aave_supply_tx".to_string(),
             args: deposit_to_aave_args.to_string().into_bytes(), // Convert directly to Vec<u8>
             gas: 300000000000000,
             deposit: 0,
@@ -452,9 +452,9 @@ async fn full_flow_test() -> Result<(), Box<dyn std::error::Error>> {
     // TODO: make a cache thing to avoid redeploying if it was deployed
 
     deploy_and_initialise(deployer_account.clone()).await?;
-    start_rebalance(deployer_account.clone()).await?;
-    withdraw_funds_for_allocation(deployer_account.clone(), alchemy_url.clone()).await?;
-    burn_for_bridge(deployer_account.clone(), alchemy_url.clone()).await?;
+    // start_rebalance(deployer_account.clone()).await?;
+    // withdraw_funds_for_allocation(deployer_account.clone(), alchemy_url.clone()).await?;
+    // burn_for_bridge(deployer_account.clone(), alchemy_url.clone()).await?;
     // test_get_activity().await?;
     // test_get_allocations().await?;
     // test_get_signed_transactions().await?;

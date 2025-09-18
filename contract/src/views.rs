@@ -1,12 +1,12 @@
 use near_sdk::{near, AccountId};
 
 use crate::{
-    tx_builders,
+    encoders, tx_builders,
     types::{
         AaveArgs, ActiveSession, ActivityLog, CCTPBurnArgs, CCTPMintArgs, CacheKey, ChainId,
         Config, RebalancerArgs, Worker,
     },
-    {Contract, ContractExt},
+    Contract, ContractExt,
 };
 
 #[near]
@@ -106,8 +106,15 @@ impl Contract {
         tx_builders::build_aave_withdraw_tx(args, config.aave.clone())
     }
 
-    pub fn build_withdraw_for_crosschain_allocation_tx(&self, args: RebalancerArgs) -> Vec<u8> {
-        tx_builders::build_withdraw_for_crosschain_allocation_tx(args)
+    pub fn build_withdraw_for_crosschain_allocation_tx(
+        &self,
+        amount: u128,
+        cross_chain_a_token_balance: Option<u128>,
+    ) -> Vec<u8> {
+        encoders::rebalancer::vault::encode_withdraw_for_crosschain_allocation(
+            amount,
+            cross_chain_a_token_balance.unwrap_or(0),
+        )
     }
 
     pub fn build_return_funds_tx(&self, args: RebalancerArgs) -> Vec<u8> {
