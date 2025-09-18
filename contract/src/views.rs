@@ -1,7 +1,11 @@
 use near_sdk::{near, AccountId};
 
 use crate::{
-    types::{ActiveSession, ActivityLog, ChainId, Config, Worker, CacheKey},
+    tx_builders,
+    types::{
+        AaveArgs, ActiveSession, ActivityLog, CCTPBurnArgs, CCTPMintArgs, CacheKey, ChainId,
+        Config, RebalancerArgs, Worker,
+    },
     {Contract, ContractExt},
 };
 
@@ -83,5 +87,30 @@ impl Contract {
     pub fn get_activity_log(&self) -> ActivityLog {
         let nonce = self.get_active_session().nonce;
         self.logs.get(&nonce).expect("Log not found").clone()
+    }
+
+    // Transaction Input Builders
+    pub fn build_cctp_burn_tx(&self, args: CCTPBurnArgs) -> Vec<u8> {
+        tx_builders::build_cctp_burn_tx(args)
+    }
+
+    pub fn build_cctp_mint_tx(&self, args: CCTPMintArgs) -> Vec<u8> {
+        tx_builders::build_cctp_mint_tx(args)
+    }
+
+    pub fn build_aave_supply_tx(&self, args: AaveArgs, config: Config) -> Vec<u8> {
+        tx_builders::build_aave_supply_tx(args, config.aave.clone())
+    }
+
+    pub fn build_aave_withdraw_tx(&self, args: AaveArgs, config: Config) -> Vec<u8> {
+        tx_builders::build_aave_withdraw_tx(args, config.aave.clone())
+    }
+
+    pub fn build_withdraw_for_crosschain_allocation_tx(&self, args: RebalancerArgs) -> Vec<u8> {
+        tx_builders::build_withdraw_for_crosschain_allocation_tx(args)
+    }
+
+    pub fn build_return_funds_tx(&self, args: RebalancerArgs) -> Vec<u8> {
+        tx_builders::build_return_funds_tx(args)
     }
 }

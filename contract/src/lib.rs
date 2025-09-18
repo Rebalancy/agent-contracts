@@ -183,7 +183,11 @@ impl Contract {
         nonce
     }
 
-    pub fn build_aave_supply_tx(&mut self, args: AaveArgs, callback_gas_tgas: u64) -> Promise {
+    pub fn build_and_sign_aave_supply_tx(
+        &mut self,
+        args: AaveArgs,
+        callback_gas_tgas: u64,
+    ) -> Promise {
         self.assert_agent_is_calling();
         self.assert_step_is_next(Step::AaveSupply);
 
@@ -200,7 +204,7 @@ impl Contract {
         self.trigger_signature(Step::AaveSupply, tx, callback_gas_tgas)
     }
 
-    pub fn build_aave_withdraw_tx(
+    pub fn build_and_sign_aave_withdraw_tx(
         &mut self,
         args: AaveArgs, // define AaveWithdrawArgs if different
         callback_gas_tgas: u64,
@@ -219,7 +223,11 @@ impl Contract {
         self.trigger_signature(Step::AaveWithdraw, tx, callback_gas_tgas)
     }
 
-    pub fn build_cctp_burn_tx(&mut self, args: CCTPBurnArgs, callback_gas_tgas: u64) -> Promise {
+    pub fn build_and_sign_cctp_burn_tx(
+        &mut self,
+        args: CCTPBurnArgs,
+        callback_gas_tgas: u64,
+    ) -> Promise {
         self.assert_agent_is_calling();
         let cfg = self.get_chain_config_for_step(Step::CCTPBurn);
 
@@ -234,7 +242,11 @@ impl Contract {
         self.trigger_signature(Step::CCTPBurn, tx, callback_gas_tgas)
     }
 
-    pub fn build_cctp_mint_tx(&mut self, args: CCTPMintArgs, callback_gas_tgas: u64) -> Promise {
+    pub fn build_and_sign_cctp_mint_tx(
+        &mut self,
+        args: CCTPMintArgs,
+        callback_gas_tgas: u64,
+    ) -> Promise {
         self.assert_agent_is_calling();
         let cfg = self.get_chain_config_for_step(Step::CCTPMint);
 
@@ -249,7 +261,7 @@ impl Contract {
         self.trigger_signature(Step::CCTPBurn, tx, callback_gas_tgas)
     }
 
-    pub fn build_withdraw_for_crosschain_allocation_tx(
+    pub fn build_and_sign_withdraw_for_crosschain_allocation_tx(
         &mut self,
         rebalancer_args: RebalancerArgs,
         callback_gas_tgas: u64,
@@ -268,7 +280,7 @@ impl Contract {
         self.trigger_signature(Step::RebalancerWithdrawToAllocate, tx, callback_gas_tgas)
     }
 
-    pub fn build_return_funds_tx(
+    pub fn build_and_sign_return_funds_tx(
         &mut self,
         args: RebalancerArgs,
         callback_gas_tgas: u64,
