@@ -3,22 +3,13 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEST_DIR="$ROOT_DIR/solidity-contracts"
+REPO="https://github.com/Rebalancy/contracts.git"
 
-REPOS=(
-  "https://github.com/Rebalancy/contracts.git"
-)
+if [ -d "$DEST_DIR/.git" ]; then
+  echo "⚠️ Repo already exists at $DEST_DIR, skipping..."
+else
+  echo "➡️ Cloning into $DEST_DIR..."
+  git clone "$REPO" "$DEST_DIR"
+fi
 
-mkdir -p "$DEST_DIR"
-cd "$DEST_DIR"
-
-for REPO in "${REPOS[@]}"; do
-  NAME=$(basename "$REPO" .git)
-  if [ -d "$NAME" ]; then
-    echo "⚠️  Repo $NAME already exists, skipping..."
-  else
-    echo "➡️  Cloning $NAME..."
-    git clone "$REPO"
-  fi
-done
-
-echo "✅ All repositories initialized under $DEST_DIR/"
+echo "✅ Repo initialized at $DEST_DIR/"

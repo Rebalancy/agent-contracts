@@ -23,3 +23,6 @@ deployer.json
 deployer*
 
 __pycache__/
+
+# Solidity contracts
+solidity-contracts
