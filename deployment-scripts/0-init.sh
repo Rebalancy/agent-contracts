@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEST_DIR="solidity-contracts"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DEST_DIR="$ROOT_DIR/solidity-contracts"
+
 REPOS=(
   "https://github.com/Rebalancy/contracts.git"
 )
