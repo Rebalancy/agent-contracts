@@ -8,6 +8,41 @@ class GasEstimator:
     def __init__(self, evm_factory_provider: AlchemyFactoryProvider):
         self.evm_factory_provider = evm_factory_provider
 
+    def estimate_gas_limit(
+        self,
+        network: Network,
+        from_address: str,
+        to_address: str,
+        data: bytes,
+        value: int = 0,
+        buffer: float = 1.2
+    ) -> int:
+        """
+        Estimate gas limit for a transaction by simulating it.
+        Adds a safety buffer (default 20%).
+        """
+        print(f"data (hex): {data.hex()}")
+        web3 = self.evm_factory_provider.get_provider(network=network)
+        if not web3:
+            raise ValueError("Web3 provider is not initialized.")
+
+        tx = {
+            "from": Web3.to_checksum_address(from_address),
+            "to": Web3.to_checksum_address(to_address) if to_address else None,
+            "data": Web3.to_hex(data),
+            "value": value,
+        }
+        print(f"Estimating gas for tx: {tx}")
+        try:
+            estimate = web3.eth.estimate_gas(tx)
+        except Exception as e:
+            # fallback to a safe default if estimation fails
+            print(f"Gas estimation failed: {e}, using default 21000")
+            return 21000
+
+        # add buffer and return as int
+        return int(estimate * buffer)
+    
     def get_eip1559_fees(self, network: Network) -> dict:
         """
         Get EIP-1559 fees for the next block on the specified EVM network.

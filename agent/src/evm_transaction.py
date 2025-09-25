@@ -48,7 +48,8 @@ def create_partial_tx(
     network: Network,
     agent_address: str,
     evm_factory_provider: IProviderFactory,
-    gas_estimator: GasEstimator
+    gas_estimator: GasEstimator,
+    gas_limit: int = 0
 ) -> EVMTransaction:
     web3 = evm_factory_provider.get_provider(network=network)
     if not web3:
@@ -57,11 +58,11 @@ def create_partial_tx(
     chain_id = web3.eth.chain_id
     nonce = web3.eth.get_transaction_count(Web3.to_checksum_address(agent_address), block_identifier="pending")
     fees = gas_estimator.get_eip1559_fees(network=network)
-
+    
     tx = EVMTransaction(
         chain_id=chain_id,
         nonce=nonce,
-        gas_limit=0,  # placeholder, to be estimated laterp
+        gas_limit=gas_limit,
         max_fee_per_gas=fees["max_fee_per_gas"],
         max_priority_fee_per_gas=fees["max_priority_fee_per_gas"],
         to=None,
