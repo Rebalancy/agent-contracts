@@ -1,3 +1,5 @@
+import ast
+import base64
 import json
 from web3 import Web3
 
@@ -126,3 +128,15 @@ def address_to_bytes32(addr: str) -> bytes:
     addr_bytes = Web3.to_bytes(hexstr=addr)
     # Left-pad with zeros to ensure it is 32 bytes
     return addr_bytes.rjust(32, b'\x00')
+
+def extract_signed_rlp(success_value_b64: str) -> bytes:
+    raw = base64.b64decode(success_value_b64)
+
+    int_list = ast.literal_eval(raw.decode("utf-8"))
+
+    payload_bytes = bytes(int_list)
+
+    # Remove the first byte (the 0x01 prefix)
+    signed_rlp = payload_bytes[1:]
+
+    return signed_rlp
