@@ -1,3 +1,4 @@
+import sys
 import ast
 import base64
 import json
@@ -5,6 +6,8 @@ from web3 import Web3
 
 from typing import Any, Dict
 from near_omni_client.networks import Network
+from near_omni_client.chain_signatures.utils import get_evm_address
+from near_omni_client.chain_signatures.kdf import Kdf
 
 def parse_chain_config(response: Any) -> dict:
     """
@@ -140,3 +143,33 @@ def extract_signed_rlp(success_value_b64: str) -> bytes:
     signed_rlp = payload_bytes[1:]
 
     return signed_rlp
+
+def calculate_evm_address_for_account_id(account_id: str, network: str, path: str) -> str:
+    """
+    Calculate the EVM address for a given NEAR account ID.
+    
+    Args:
+        account_id (str): The NEAR account ID.
+        network (str): The network short name, e.g., "testnet" or "mainnet".
+        path (str): The derivation path.
+    """
+    agent_public_key = Kdf.derive_public_key(
+        root_public_key_str=Kdf.get_root_public_key(network),
+        epsilon=Kdf.derive_epsilon(account_id=account_id, path=path)
+    )
+    
+    agent_evm_address = get_evm_address(agent_public_key)
+
+    return agent_evm_address
+
+if __name__ == "__main__":
+    if len(sys.argv) != 4:
+        print("Usage: python -m agent.src.utils <account_id> <network> <path>")
+        sys.exit(1)
+
+    account_id = sys.argv[1]
+    network = sys.argv[2]
+    path = sys.argv[3]
+
+    evm_addr = calculate_evm_address_for_account_id(account_id, network, path)
+    print(evm_addr)
