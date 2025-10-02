@@ -1,0 +1,7 @@
+@config/=src/config/
+@constants/=src/constants/
+@mocks/=src/mocks/
+@openzeppelin/=dependencies/@openzeppelin-contracts-5.2.0/
+@src/=src/
+@utils/=src/utils/
+forge-std/=dependencies/forge-std-1.10.0/src

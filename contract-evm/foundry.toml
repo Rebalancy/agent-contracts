@@ -1,0 +1,14 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["dependencies"]
+fs_permissions = [{ access = "read-write", path = "./" }]
+
+[dependencies]
+forge-std = "1.10.0"
+"@openzeppelin-contracts" = "5.2.0"
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+[etherscan]
+baseSepolia = { key = "${BASESCAN_API_KEY}", url = "https://api-sepolia.basescan.org/api" }
+base = { key = "${BASESCAN_API_KEY}", url = "https://api.basescan.org/api" }
