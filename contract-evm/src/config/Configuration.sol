@@ -26,34 +26,32 @@ library Configuration {
     }
 
     function load(Vm _vm) external view returns (ConfigValues memory) {
-        string memory networkId = _vm.envString("NETWORK_ID");
+        uint64 chainId = uint64(block.chainid);
 
-        uint64 networkIdInt = uint64(_vm.parseUint(networkId));
-
-        if (networkIdInt == Constants.LOCAL_NETWORK) {
+        if (chainId == Constants.LOCAL_NETWORK) {
             return ConfigurationLocal.getConfig(_vm);
         }
 
-        if (networkIdInt == Constants.ETHEREUM_MAINNET_NETWORK) {
+        if (chainId == Constants.ETHEREUM_MAINNET_NETWORK) {
             return ConfigurationEthereumMainnet.getConfig(_vm);
         }
 
-        if (networkIdInt == Constants.ETHEREUM_SEPOLIA_NETWORK) {
+        if (chainId == Constants.ETHEREUM_SEPOLIA_NETWORK) {
             return ConfigurationEthereumSepolia.getConfig(_vm);
         }
 
-        if (networkIdInt == Constants.BASE_MAINNET_NETWORK) {
+        if (chainId == Constants.BASE_MAINNET_NETWORK) {
             return ConfigurationBaseMainnet.getConfig(_vm);
         }
 
-        if (networkIdInt == Constants.BASE_SEPOLIA_NETWORK) {
+        if (chainId == Constants.BASE_SEPOLIA_NETWORK) {
             return ConfigurationBaseSepolia.getConfig(_vm);
         }
 
-        if (networkIdInt == Constants.ARBITRUM_SEPOLIA_NETWORK) {
+        if (chainId == Constants.ARBITRUM_SEPOLIA_NETWORK) {
             return ConfigurationArbitrumSepolia.getConfig(_vm);
         }
 
-        revert(string(abi.encodePacked("Configuration: network not supported ", networkId)));
+        revert(string(abi.encodePacked("Configuration: network not supported ", chainId.toString())));
     }
 }
