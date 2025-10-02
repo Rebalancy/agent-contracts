@@ -16,6 +16,11 @@ test-agent:
     echo "Running agent tests..."
     cd agent && PYTHONPATH=src uv run pytest
 
+# contract
+create-account ACCOUNT_ID:
+    echo "Creating NEAR account: {{ACCOUNT_ID}}..."
+    near create-account "{{ACCOUNT_ID}}" --useFaucet
+
 # contract-evm
 compile-evm-contracts:
     echo "Compiling EVM contracts..."

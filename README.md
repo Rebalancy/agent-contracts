@@ -4,5 +4,8 @@
 
 ## Commands
 
-> just new-account {suffix}
+> just create-account <Account Name>
 
+Example:
+
+`just create one-thing.testnet`
