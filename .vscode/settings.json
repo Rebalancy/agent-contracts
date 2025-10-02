@@ -1,4 +1,5 @@
 {
     "dependi.python.lockFileEnabled": false,
-    "python-envs.pythonProjects": []
+    "python-envs.pythonProjects": [],
+    "solidity.defaultCompiler": "remote"
 }
