@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Carga las funciones en ESTE shell
+# load common functions and variables
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
 # shellcheck source=0-common.sh
-. "$SCRIPT_DIR/0-common.sh"   # <- usa "source" o "." en lugar de ./0-common.sh
+. "$SCRIPT_DIR/0-common.sh"
 
 # 1) Create a new NEAR account with an incremented index
 
@@ -14,11 +15,13 @@ NETWORK="testnet"
 PATH_STR="ethereum-1"
 DEPLOYMENTS_DIR="deployments"
 
+# create deployments directory if it doesn't exist
 if [ ! -d "$DEPLOYMENTS_DIR" ]; then
   echo "📂 Creating deployments folder..."
   mkdir -p "$DEPLOYMENTS_DIR"
 fi
 
+# find the last index used
 if [ "$(ls -A $DEPLOYMENTS_DIR)" ]; then
   LAST_INDEX=$(jq -r '.index' $(ls -t $DEPLOYMENTS_DIR/deploy-*.json | head -n1))
 else
@@ -29,7 +32,7 @@ NEW_INDEX=$((LAST_INDEX + 1))
 ACCOUNT_ID="${BASE_NAME}-${NEW_INDEX}.${NETWORK}"
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
 
-# Build the new account ID
+# build the new account ID
 ACCOUNT_ID="${BASE_NAME}-${NEW_INDEX}.${NETWORK}"
 
 echo "➡️  Creating account: $ACCOUNT_ID"
