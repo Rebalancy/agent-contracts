@@ -42,8 +42,8 @@ contract DepositScript is BaseScript {
 
         console2.log("Approved AaveVault to spend USDC testnet");
 
-        // Deposit 1000 USDC testnet into AaveVault
-        uint256 depositAmount = 1 ** usdcTestnet.decimals();
+        // Deposit 10 USDC testnet into AaveVault
+        uint256 depositAmount = 10 ** usdcTestnet.decimals();
         console2.log("Depositing %s USDC testnet into AaveVault", depositAmount);
         aaveVault.deposit(depositAmount, deployer);
 
