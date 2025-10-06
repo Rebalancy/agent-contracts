@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.28;
 
+import "@openzeppelin/utils/Strings.sol";
 import {console2} from "forge-std/console2.sol";
 import {Vm} from "forge-std/Vm.sol";
 
@@ -20,6 +21,8 @@ import {Vm} from "forge-std/Vm.sol";
  * vm.loadDeploymentAddress("ContractName");
  */
 library DeploymentUtils {
+    using Strings for uint64;
+
     function loadDeploymentAddress(Vm vm, string memory _networkId, string memory _contractName)
         internal
         view
@@ -43,7 +46,8 @@ library DeploymentUtils {
     function loadDeploymentAddress(Vm vm, string memory _contractName) internal view returns (address) {
         console2.log("Loading address");
 
-        string memory networkId = vm.envString("NETWORK_ID");
+        uint64 chainId = uint64(block.chainid);
+        string memory networkId = Strings.toString(chainId);
 
         string memory folderPath = _getFolderPath(vm, networkId);
 
@@ -77,7 +81,8 @@ library DeploymentUtils {
     function saveDeploymentAddress(Vm vm, string memory _contractName, address _address) internal {
         console2.log("Exporting deployment");
 
-        string memory networkId = vm.envString("NETWORK_ID");
+        uint64 chainId = uint64(block.chainid);
+        string memory networkId = Strings.toString(chainId);
 
         string memory folderPath = _getFolderPath(vm, networkId);
 
