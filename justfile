@@ -1,11 +1,18 @@
+set dotenv-load
+set export
+
 run_agent:
-    uv run main.py
+    cd agent && uv run src/main.py
 
 build-contract:
     echo "Building contract..."
     cd contract && cargo near build non-reproducible-wasm
 
-test:
+contract-run-init:
+    echo "Running contract initialization test..."
+    cd contract && cargo test --test test_init -- --nocapture
+    
+contract-run-test:
     echo "Running tests..."
     cd contract && cargo test -- --nocapture
 
@@ -38,3 +45,10 @@ test-evm-contracts-fork:
     echo "Running EVM fork tests..."
     cd contract-evm && just test_fork
 
+deploy_arbitrum_sepolia:
+    echo "Deploying to Arbitrum Sepolia..."
+    cd contract-evm && just deploy_arbitrum_sepolia
+
+seed_agent_address_in_arbitrum_sepolia:
+    echo "Seeding agent address with ETH..."
+    cd contract-evm && just seed_agent_address_in_arbitrum_sepolia
