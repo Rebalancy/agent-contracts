@@ -35,25 +35,12 @@ TIMESTAMP=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
 # build the new account ID
 ACCOUNT_ID="${BASE_NAME}-${NEW_INDEX}.${NETWORK}"
 
-# echo "➡️  Creating account: $ACCOUNT_ID"
-INFO=$(near create-account "$ACCOUNT_ID" --useFaucet)
-
-echo "$INFO"
-# echo "$INFO" > "deployments/accounts/$ACCOUNT_ID.json"
-
-# # parsea campos
-# ACCOUNT_ID=$(echo "$INFO" | jq -r .account_id)
-# PUBLIC_KEY=$(echo "$INFO" | jq -r .public_key)
-# PRIVATE_KEY=$(echo "$INFO" | jq -r .private_key)
-
-# # actualiza .env con el "one-time signer"
-# update_env_var "ONE_TIME_SIGNER_ACCOUNT_ID" "$ACCOUNT_ID" ".env"
-# update_env_var "ONE_TIME_SIGNER_PUBLIC_KEY" "$PUBLIC_KEY" ".env"
-# update_env_var "ONE_TIME_SIGNER_PRIVATE_KEY" "$PRIVATE_KEY" ".env"
+echo "➡️  Creating account: $ACCOUNT_ID"
+near create-account "$ACCOUNT_ID" --useFaucet
 
 echo "✅ Account $ACCOUNT_ID created and saved (index=$NEW_INDEX)"
 
-# # 2) Calculate the derived address for the agent 
+# 2) Calculate the derived address for the agent 
 EVMTARGET=$(cd agent && uv run python -m src.utils "$ACCOUNT_ID" "$NETWORK" "$PATH_STR")
 echo "🔑 Derived EVM address for $ACCOUNT_ID: $EVMTARGET"
 
@@ -79,20 +66,17 @@ echo "🚀 Deploying solidity contracts using the derived address: $EVMTARGET"
 update_env_var "AGENT_ADDRESS" "$EVMTARGET" ".env"
 
 # 5) Deploy the evm contracts
-just deploy_arbitrum_sepolia
-
-# 6) Do initial deposit
-just initial_deposit # TODO
+# just deploy_arbitrum_sepolia # @dev this includes initial deposit
 
 # 6) Seed Agent Address
-just seed_agent_address_in_arbitrum_sepolia
+# just seed_agent_address_in_arbitrum_sepolia
 
 # 6) Deploy the agent contract to the new account
-near deploy "$ACCOUNT_ID" --wasmFile contract/target/near/shade_agent_contract.wasm
+near deploy "$ACCOUNT_ID" --wasmFile contract/target/near/shade_agent_contract.wasm --initArgs ""
 echo "✅ Agent contract deployed to $ACCOUNT_ID"
 
 # 7) Run the agent
-just run_agent
+# just run_agent
 
 
 
