@@ -1,17 +1,17 @@
 from typing import Dict
-from .types import Flow
-from .strategies import Strategy, AaveToAave, RebalancerToAave, AaveToRebalancer
-from .rebalancer_contract import RebalancerContract
+from tx_types import Flow
+from strategies import Strategy, AaveToAave, RebalancerToAave, AaveToRebalancer
+from rebalancer_contract import RebalancerContract
 
 class StrategyManager:
     _strategies: Dict[Flow, Strategy] | None = None
 
     @classmethod
-    def configure(cls, *, rebalancer_contract: RebalancerContract) -> None:
+    def configure(cls, *, rebalancer_contract: RebalancerContract, evm_factory_provider, vault_address: str) -> None:
         cls._strategies = {
-            Flow.RebalancerToAave: RebalancerToAave(rebalancer_contract=rebalancer_contract),
-            Flow.AaveToRebalancer: AaveToRebalancer(rebalancer_contract=rebalancer_contract),
-            Flow.AaveToAave:       AaveToAave(rebalancer_contract=rebalancer_contract),
+            Flow.RebalancerToAave: RebalancerToAave(rebalancer_contract=rebalancer_contract, evm_factory_provider=evm_factory_provider, vault_address=vault_address),
+            Flow.AaveToRebalancer: AaveToRebalancer(rebalancer_contract=rebalancer_contract, evm_factory_provider=evm_factory_provider, vault_address=vault_address),
+            Flow.AaveToAave:       AaveToAave(rebalancer_contract=rebalancer_contract, evm_factory_provider=evm_factory_provider, vault_address=vault_address),
         }
 
     @classmethod
