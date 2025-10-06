@@ -105,7 +105,7 @@ fn get_agent_address(deployer_account: NearAccount) -> Address {
 }
 
 #[tokio::test]
-async fn full_flow_test() -> Result<(), Box<dyn std::error::Error>> {
+async fn init() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
     let deployer_account: NearAccount = get_user_account_info_from_file(None)?;
