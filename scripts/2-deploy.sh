@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # 1) Create a new NEAR account with an incremented index
 
 # base name for the accounts
-BASE_NAME="rebalancer-abc"
+BASE_NAME="rebalancer-abcdefg"
 NETWORK="testnet"
 PATH_STR="ethereum-1"
 DEPLOYMENTS_DIR="deployments"
@@ -35,12 +35,25 @@ TIMESTAMP=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
 # build the new account ID
 ACCOUNT_ID="${BASE_NAME}-${NEW_INDEX}.${NETWORK}"
 
-echo "➡️  Creating account: $ACCOUNT_ID"
-near create-account "$ACCOUNT_ID" --useFaucet
+# echo "➡️  Creating account: $ACCOUNT_ID"
+INFO=$(near create-account "$ACCOUNT_ID" --useFaucet)
+
+echo "$INFO"
+# echo "$INFO" > "deployments/accounts/$ACCOUNT_ID.json"
+
+# # parsea campos
+# ACCOUNT_ID=$(echo "$INFO" | jq -r .account_id)
+# PUBLIC_KEY=$(echo "$INFO" | jq -r .public_key)
+# PRIVATE_KEY=$(echo "$INFO" | jq -r .private_key)
+
+# # actualiza .env con el "one-time signer"
+# update_env_var "ONE_TIME_SIGNER_ACCOUNT_ID" "$ACCOUNT_ID" ".env"
+# update_env_var "ONE_TIME_SIGNER_PUBLIC_KEY" "$PUBLIC_KEY" ".env"
+# update_env_var "ONE_TIME_SIGNER_PRIVATE_KEY" "$PRIVATE_KEY" ".env"
 
 echo "✅ Account $ACCOUNT_ID created and saved (index=$NEW_INDEX)"
 
-# 2) Calculate the derived address for the agent 
+# # 2) Calculate the derived address for the agent 
 EVMTARGET=$(cd agent && uv run python -m src.utils "$ACCOUNT_ID" "$NETWORK" "$PATH_STR")
 echo "🔑 Derived EVM address for $ACCOUNT_ID: $EVMTARGET"
 
@@ -65,13 +78,27 @@ echo "🚀 Deploying solidity contracts using the derived address: $EVMTARGET"
 # 4) Save the derived address into the .env file
 update_env_var "AGENT_ADDRESS" "$EVMTARGET" ".env"
 
-# 5) Deploy the contracts
-pushd solidity-contracts > /dev/null
+# 5) Deploy the evm contracts
 just deploy_arbitrum_sepolia
-popd > /dev/null
+
+# 6) Do initial deposit
+just initial_deposit # TODO
 
 # 6) Seed Agent Address
-
+just seed_agent_address_in_arbitrum_sepolia
 
 # 6) Deploy the agent contract to the new account
-just test
+near deploy "$ACCOUNT_ID" --wasmFile contract/target/near/shade_agent_contract.wasm
+echo "✅ Agent contract deployed to $ACCOUNT_ID"
+
+# 7) Run the agent
+just run_agent
+
+
+
+# QUITAR DEL DEPLOY ESO DE GUARDAR LA KEY EN EL .ENV FILE y SOLO LEER DESDE EL default location
+# Calculo direccion
+# Deployo contratos
+# Seedeo direccion
+# Corro test de init (cargo test --test test_init)
+# Corro el agente (just run_agent)
