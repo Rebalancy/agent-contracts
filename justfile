@@ -1,9 +1,6 @@
 set dotenv-load
 set export
 
-run_agent:
-    cd agent && uv run src/main.py
-
 build-contract:
     echo "Building contract..."
     cd contract && cargo near build non-reproducible-wasm
@@ -22,6 +19,10 @@ build-with-docker:
 test-agent:
     echo "Running agent tests..."
     cd agent && PYTHONPATH=src uv run pytest
+
+# agent
+run_agent:
+    cd agent && uv run src/main.py
 
 # contract
 create-account ACCOUNT_ID:
