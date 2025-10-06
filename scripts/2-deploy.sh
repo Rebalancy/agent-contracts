@@ -66,10 +66,10 @@ echo "🚀 Deploying solidity contracts using the derived address: $EVMTARGET"
 update_env_var "AGENT_ADDRESS" "$EVMTARGET" ".env"
 
 # 5) Deploy the evm contracts
-# just deploy_arbitrum_sepolia # @dev this includes initial deposit
+just deploy_arbitrum_sepolia # @dev this includes initial deposit
 
 # 6) Seed Agent Address
-# just seed_agent_address_in_arbitrum_sepolia
+just seed_agent_address_in_arbitrum_sepolia
 
 # 6) Deploy the agent contract to the new account
 near deploy $ACCOUNT_ID "contract/target/near/shade_agent_contract.wasm" \
@@ -78,14 +78,9 @@ near deploy $ACCOUNT_ID "contract/target/near/shade_agent_contract.wasm" \
 
 echo "✅ Agent contract deployed to $ACCOUNT_ID"
 
+update_env_var NEAR_CONTRACT_ACCOUNT "$ACCOUNT_ID" ".env"
+
+sleep 10
+
 # 7) Run the agent
 just run_agent
-
-
-
-# QUITAR DEL DEPLOY ESO DE GUARDAR LA KEY EN EL .ENV FILE y SOLO LEER DESDE EL default location
-# Calculo direccion
-# Deployo contratos
-# Seedeo direccion
-# Corro test de init (cargo test --test test_init)
-# Corro el agente (just run_agent)
