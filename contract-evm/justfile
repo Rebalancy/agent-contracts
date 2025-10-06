@@ -35,7 +35,7 @@ deploy_arbitrum_sepolia:
     echo "Deploying contracts to Arbitrum Sepolia"
     MNEMONIC=$MNEMONIC_TESTNET just deploy_aave_vault {{RPC_URL_ARBITRUM_SEPOLIA}} $SENDER_TESTNET
     MNEMONIC=$MNEMONIC_TESTNET just deposit {{RPC_URL_ARBITRUM_SEPOLIA}} $SENDER_TESTNET
-    
+
 # actions
 seed_agent_address_in_arbitrum_sepolia:
     echo "Transferring ETH to the Agent Address"

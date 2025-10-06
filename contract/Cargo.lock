@@ -4876,6 +4876,7 @@ dependencies = [
  "near-workspaces",
  "omni-transaction",
  "schemars 0.8.22",
+ "serde",
  "serde_json",
  "sha2",
  "sha3",
