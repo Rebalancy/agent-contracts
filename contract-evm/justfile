@@ -12,11 +12,11 @@ RPC_URL_LOCAL := "http://localhost:8555"
 # deployments
 deploy_aave_vault JSON_RPC_URL SENDER:
     echo "Deploying Aave Vault"
-    forge script script/001_deploy_aave_vault.s.sol:DeployAaveVaultScript --rpc-url $JSON_RPC_URL --sender $SENDER --broadcast --verify  --ffi -vvvv
+    forge script script/001_deploy_aave_vault.s.sol:DeployAaveVaultScript --rpc-url $JSON_RPC_URL --sender $SENDER --broadcast --verify --etherscan-api-key $ETHERSCAN_API_KEY --ffi -vvvv
 
 deploy_mock_usdc JSON_RPC_URL SENDER:
     echo "Deploying MockUSDC"
-    forge script script/000_deploy_mock_usdc.s.sol:DeployMockUSDCScript --rpc-url $JSON_RPC_URL --sender $SENDER --broadcast --verify --ffi -vvvv
+    forge script script/000_deploy_mock_usdc.s.sol:DeployMockUSDCScript --rpc-url $JSON_RPC_URL --sender $SENDER --broadcast --ffi -vvvv
 
 # deployment by network
 deploy_local:
@@ -67,6 +67,10 @@ test_unit:
 test_fork:
     echo "Running fork tests"
     forge test --match-path "test/fork/**/*.sol" --fork-url $RPC_URL_ARBITRUM_SEPOLIA --fork-block-number 186031120 -vvvv 
+
+test_debug:
+    echo "Running debug tests"
+    forge test --match-path "test/debug/**/*.sol" --fork-url {{RPC_URL_ARBITRUM_SEPOLIA}} --fork-block-number 202108155 -vvvv 
 
 test_coverage:
     forge coverage --rpc-url $RPC_URL_ETHEREUM_MAINNET --report lcov 
