@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # 1) Create a new NEAR account with an incremented index
 
 # base name for the accounts
-BASE_NAME="rebalancer-abcdefg"
+BASE_NAME="rebalancer-abcdefgh"
 NETWORK="testnet"
 PATH_STR="ethereum-1"
 DEPLOYMENTS_DIR="deployments"
@@ -82,5 +82,4 @@ update_env_var NEAR_CONTRACT_ACCOUNT "$ACCOUNT_ID" ".env"
 
 sleep 10
 
-# 7) Run the agent
-just run_agent
+echo "✅ Deployment process completed successfully!"
