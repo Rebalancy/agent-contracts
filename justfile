@@ -46,6 +46,10 @@ test-evm-contracts-fork:
     echo "Running EVM fork tests..."
     cd contract-evm && just test_fork
 
+test-evm-contracts-debug:
+    echo "Running EVM debug tests..."
+    cd contract-evm && just test_debug
+
 deploy_arbitrum_sepolia:
     echo "Deploying to Arbitrum Sepolia..."
     cd contract-evm && just deploy_arbitrum_sepolia
