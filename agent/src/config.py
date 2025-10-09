@@ -23,7 +23,7 @@ class Config:
         alchemy_api_key: str,
         callback_gas_tgas: int,
         tx_tgas: int,
-        max_bridge_fee: float,
+        max_bridge_fee: int,
         min_bridge_finality_threshold: int,
         one_time_signer_private_key: str,
         one_time_signer_account_id: str,
@@ -54,7 +54,7 @@ class Config:
         network_short_name = "testnet" if near_network == Network.NEAR_TESTNET else "mainnet"
 
         alchemy_api_key = os.getenv("ALCHEMY_API_KEY", "your_alchemy_api_key_here")
-        max_bridge_fee = float(os.getenv("MAX_BRIDGE_FEE", "990000"))  # 0.99 USDC (6 decimals)
+        max_bridge_fee = int(os.getenv("MAX_BRIDGE_FEE", "990000"))  # 0.99 USDC (6 decimals)
         min_bridge_finality_threshold = int(os.getenv("MIN_BRIDGE_FINALITY_THRESHOLD", "1000"))
         one_time_signer_private_key = os.getenv("ONE_TIME_SIGNER_PRIVATE_KEY", "your_private_key_here")
         one_time_signer_account_id = os.getenv("ONE_TIME_SIGNER_ACCOUNT_ID", "your_account_id_here")
