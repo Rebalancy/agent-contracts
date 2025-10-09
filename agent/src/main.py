@@ -35,8 +35,6 @@ async def main():
         root_public_key_str=Kdf.get_root_public_key(config.network_short_name),
         epsilon=Kdf.derive_epsilon(account_id=config.contract_id, path=PATH)
     )
-    print(f"Agent Public Key: {agent_public_key}")
-
     agent_evm_address = get_evm_address(agent_public_key)
     print(f"Agent Address: {agent_evm_address}")
 
@@ -49,7 +47,7 @@ async def main():
         supported_networks=[Network.NEAR_TESTNET, Network.NEAR_MAINNET],
     )
 
-    rebalancer_contract = RebalancerContract(near_client, near_wallet, config.contract_id, agent_evm_address, gas_estimator=gas_estimator, evm_provider=alchemy_factory_provider)
+    rebalancer_contract = RebalancerContract(near_client, near_wallet, config.contract_id, agent_evm_address, gas_estimator=gas_estimator, evm_provider=alchemy_factory_provider, config=config)
     
     configs = await rebalancer_contract.get_all_configs()
     source_chain_id = await rebalancer_contract.get_source_chain()
@@ -97,7 +95,7 @@ async def main():
         return
 
     # Configure Strategies
-    StrategyManager.configure(rebalancer_contract=rebalancer_contract, evm_factory_provider = alchemy_factory_provider, vault_address=vault_address, config=config)
+    StrategyManager.configure(rebalancer_contract=rebalancer_contract, evm_factory_provider = alchemy_factory_provider, vault_address=vault_address, config=config, remote_config=configs)
 
     # Execute Rebalance Operations 
     await execute_all_rebalance_operations(
