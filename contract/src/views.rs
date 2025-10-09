@@ -1,11 +1,10 @@
+use alloy_primitives::{Address, B256, U256};
 use near_sdk::{near, AccountId};
+use std::str::FromStr;
 
 use crate::{
-    encoders, tx_builders,
-    types::{
-        AaveArgs, ActiveSession, ActivityLog, CCTPBurnArgs, CCTPMintArgs, CacheKey, ChainId,
-        Config, RebalancerArgs, Worker,
-    },
+    encoders,
+    types::{ActiveSession, ActivityLog, CacheKey, ChainId, Config, Worker},
     Contract, ContractExt,
 };
 
@@ -90,20 +89,57 @@ impl Contract {
     }
 
     // Transaction Input Builders
-    pub fn build_cctp_burn_tx(&self, args: CCTPBurnArgs) -> Vec<u8> {
-        tx_builders::build_cctp_burn_tx(args)
+    pub fn build_cctp_burn_tx(
+        &self,
+        amount: u128,
+        destination_domain: u32,
+        mint_recipient: String,
+        burn_token: String,
+        destination_caller: String,
+        max_fee: u128,
+        min_finality_threshold: u32,
+    ) -> Vec<u8> {
+        encoders::cctp::messenger::encode_deposit_for_burn(
+            U256::from(amount),
+            destination_domain,
+            B256::from_str(&mint_recipient).expect("Invalid recipient"),
+            Address::from_str(&burn_token).expect("Invalid token address"),
+            B256::from_str(&destination_caller).expect("Invalid destination caller"),
+            U256::from(max_fee),
+            min_finality_threshold,
+        )
     }
 
-    pub fn build_cctp_mint_tx(&self, args: CCTPMintArgs) -> Vec<u8> {
-        tx_builders::build_cctp_mint_tx(args)
+    pub fn build_cctp_mint_tx(&self, message: Vec<u8>, attestation: Vec<u8>) -> Vec<u8> {
+        encoders::cctp::transmitter::encode_receive_message(message, attestation)
     }
 
-    pub fn build_aave_supply_tx(&self, args: AaveArgs, config: Config) -> Vec<u8> {
-        tx_builders::build_aave_supply_tx(args, config.aave.clone())
+    pub fn build_aave_supply_tx(
+        &self,
+        asset: String,
+        amount: u128,
+        on_behalf_of: String,
+        referral_code: u16,
+    ) -> Vec<u8> {
+        encoders::aave::lending_pool::encode_supply(
+            Address::from_str(&asset).expect("Invalid asset address"),
+            U256::from(amount),
+            Address::from_str(&on_behalf_of).expect("Invalid on_behalf_of address"),
+            referral_code,
+        )
     }
 
-    pub fn build_aave_withdraw_tx(&self, args: AaveArgs, config: Config) -> Vec<u8> {
-        tx_builders::build_aave_withdraw_tx(args, config.aave.clone())
+    pub fn build_aave_withdraw_tx(
+        &self,
+        asset: String,
+        amount: u128,
+        on_behalf_of: String,
+    ) -> Vec<u8> {
+        encoders::aave::lending_pool::encode_withdraw(
+            Address::from_str(&asset).expect("Invalid asset address"),
+            U256::from(amount),
+            Address::from_str(&on_behalf_of).expect("Invalid on_behalf_of address"),
+        )
     }
 
     pub fn build_withdraw_for_crosschain_allocation_tx(
@@ -117,7 +153,14 @@ impl Contract {
         )
     }
 
-    pub fn build_return_funds_tx(&self, args: RebalancerArgs) -> Vec<u8> {
-        tx_builders::build_return_funds_tx(args)
+    pub fn build_return_funds_tx(
+        &self,
+        amount: u128,
+        cross_chain_a_token_balance: Option<u128>,
+    ) -> Vec<u8> {
+        encoders::rebalancer::vault::encode_return_funds(
+            amount,
+            cross_chain_a_token_balance.unwrap_or(0),
+        )
     }
 }
