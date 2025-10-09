@@ -3,7 +3,7 @@ set export
 
 build-contract:
     echo "Building contract..."
-    cd contract && cargo near build non-reproducible-wasm
+    cd contract && cargo build
 
 contract-run-init:
     echo "Running contract initialization test..."

@@ -1,8 +1,4 @@
-import os
 import asyncio
-import json
-
-from dotenv import load_dotenv
 
 from near_omni_client.providers.near import NearFactoryProvider
 from near_omni_client.networks import Network
@@ -23,35 +19,37 @@ from rebalancer_executor import execute_all_rebalance_operations
 from rebalancer_contract import RebalancerContract
 from strategy_manager import StrategyManager
 from gas_estimator import GasEstimator
+from config import Config
 
-PATH = "rebalancer.testnet"
+PATH = "ethereum-1"
 
 async def main():
-    load_dotenv() 
-    contract_id = os.getenv("NEAR_CONTRACT_ACCOUNT", "rebalancer.testnet")
-    near_network = os.getenv("NEAR_NETWORK", "testnet")
-    alchemy_api_key = os.getenv("ALCHEMY_API_KEY", "your_alchemy_api_key_here")
-    max_bridge_fee = float(os.getenv("MAX_BRIDGE_FEE", "0.99"))
-    min_bridge_finality_threshold = int(os.getenv("MIN_BRIDGE_FINALITY_THRESHOLD", "1000"))
-    one_time_signer_private_key = os.getenv("ONE_TIME_SIGNER_PRIVATE_KEY", "your_private_key_here")
-    one_time_signer_account_id = os.getenv("ONE_TIME_SIGNER_ACCOUNT_ID", "your_account_id_here")
+    # Load configuration from environment variables
+    config = Config.from_env()
 
-    near_network = Network.parse(near_network)
     near_factory_provider = NearFactoryProvider()
-    near_client = near_factory_provider.get_provider(near_network)
-    alchemy_factory_provider = AlchemyFactoryProvider(api_key=alchemy_api_key)
+    near_client = near_factory_provider.get_provider(config.near_network)
+    alchemy_factory_provider = AlchemyFactoryProvider(api_key=config.alchemy_api_key)
 
-    network_short_name = "testnet" if near_network == Network.NEAR_TESTNET else "mainnet"
     agent_public_key = Kdf.derive_public_key(
-        root_public_key_str=Kdf.get_root_public_key(network_short_name),
-        epsilon=Kdf.derive_epsilon(account_id=contract_id, path=PATH)
+        root_public_key_str=Kdf.get_root_public_key(config.network_short_name),
+        epsilon=Kdf.derive_epsilon(account_id=config.contract_id, path=PATH)
     )
-    
+    print(f"Agent Public Key: {agent_public_key}")
+
     agent_evm_address = get_evm_address(agent_public_key)
     print(f"Agent Address: {agent_evm_address}")
 
     gas_estimator = GasEstimator(evm_factory_provider=alchemy_factory_provider)
-    rebalancer_contract = RebalancerContract(near_client, contract_id, agent_evm_address, gas_estimator=gas_estimator, evm_provider=alchemy_factory_provider)
+    near_local_signer = KeyPair.from_string(config.one_time_signer_private_key)
+    near_wallet = NearWallet(
+        keypair=near_local_signer,
+        account_id=config.one_time_signer_account_id,
+        provider_factory=near_factory_provider,
+        supported_networks=[Network.NEAR_TESTNET, Network.NEAR_MAINNET],
+    )
+
+    rebalancer_contract = RebalancerContract(near_client, near_wallet, config.contract_id, agent_evm_address, gas_estimator=gas_estimator, evm_provider=alchemy_factory_provider)
     
     configs = await rebalancer_contract.get_all_configs()
     source_chain_id = await rebalancer_contract.get_source_chain()
@@ -70,8 +68,8 @@ async def main():
 
     mpc_wallet = MPCWallet(
         path=PATH,
-        account_id=contract_id, # The account ID of the contract on NEAR
-        near_network=near_network,
+        account_id=config.contract_id, # The account ID of the contract on NEAR
+        near_network=config.near_network,
         provider_factory=alchemy_factory_provider,
         supported_networks=[Network.OPTIMISM_SEPOLIA, Network.ARBITRUM_SEPOLIA],
     )
@@ -86,28 +84,11 @@ async def main():
 
     print("Current Allocations after fetching totalAssets:", current_allocations)
 
-    override_rates = os.getenv("OVERRIDE_INTEREST_RATES", "{}")
-
-    try:
-        override_interest_rates_raw = json.loads(override_rates)
-        override_interest_rates = {int(k): v for k, v in override_interest_rates_raw.items()}
-    except json.JSONDecodeError:
-        raise ValueError("OVERRIDE_INTEREST_RATES must be a valid JSON dictionary.")
-
-    extra_data_for_optimization = await get_extra_data_for_optimization(total_assets_under_management, mpc_wallet, current_allocations, configs, override_interest_rates)
+    extra_data_for_optimization = await get_extra_data_for_optimization(total_assets_under_management, mpc_wallet, current_allocations, configs, config.override_interest_rates)
 
     optimized_allocations = optimize_chain_allocation_with_direction(data=extra_data_for_optimization)
-
     print("Optimized Allocations:", optimized_allocations)
     
-    near_local_signer = KeyPair.from_string(one_time_signer_private_key)
-    near_wallet = NearWallet(
-        keypair=near_local_signer,
-        account_id=one_time_signer_account_id,
-        provider_factory=near_factory_provider,
-        supported_networks=[Network.NEAR_TESTNET, Network.NEAR_MAINNET],
-    )
-
     rebalance_operations = compute_rebalance_operations(current_allocations, optimized_allocations["allocations"])
     print("Rebalance Operations:", rebalance_operations)
 
@@ -116,7 +97,7 @@ async def main():
         return
 
     # Configure Strategies
-    StrategyManager.configure(rebalancer_contract=rebalancer_contract)
+    StrategyManager.configure(rebalancer_contract=rebalancer_contract, evm_factory_provider = alchemy_factory_provider, vault_address=vault_address, config=config)
 
     # Execute Rebalance Operations 
     await execute_all_rebalance_operations(

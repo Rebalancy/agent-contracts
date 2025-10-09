@@ -1,117 +1,50 @@
+from near_omni_client.providers.evm import AlchemyFactoryProvider
 from near_omni_client.json_rpc.client import NearClient
-from web3 import Web3
 
 from .strategy import Strategy
-from ..rebalancer_contract import RebalancerContract
-from ..types import Flow
-# async def execute_rebalancer_to_aave_flow(
-#     *,
-#     from_chain_id: int,
-#     to_chain_id: int,
-#     amount: int,
-#     near_client: NearClient,
-#     near_contract_id: str,
-#     evm_factory_provider,
-#     agent_address: str,
-#     max_bridge_fee: int,
-#     min_finality_threshold: int,
-# ):
-#     print(f"🟦 Flow Rebalancer→Aave | from={from_chain_id} to={to_chain_id} amount={amount}")
-#     await step_rebalancer_withdraw_to_allocate(
-#         from_chain_id=from_chain_id, amount=amount,
-#         near_client=near_client, near_contract_id=near_contract_id, evm_factory_provider=evm_factory_provider
-#     )
-    # burn_hash = await step_cctp_burn(
-    #     from_chain_id=from_chain_id, to_chain_id=to_chain_id, amount=amount,
-    #     agent_address=agent_address, max_bridge_fee=max_bridge_fee, min_finality_threshold=min_finality_threshold,
-    #     near_client=near_client, near_contract_id=near_contract_id, evm_factory_provider=evm_factory_provider
-    # )
-    # att = await _wait_attestation(burn_hash, from_chain_id, to_chain_id, min_finality_threshold)
-    # await step_cctp_mint(
-    #     to_chain_id=to_chain_id, attestation_payload=att,
-    #     near_client=near_client, near_contract_id=near_contract_id, evm_factory_provider=evm_factory_provider
-    # )
-    # await step_aave_supply(
-    #     to_chain_id=to_chain_id, amount=amount,
-    #     near_client=near_client, near_contract_id=near_contract_id, evm_factory_provider=evm_factory_provider
-    # )
-    # print(" ✅ Flow Rebalancer→Aave completed.\n")
+from rebalancer_contract import RebalancerContract
+from tx_types import Flow
+from config import Config
+from utils import from_chain_id_to_network
+from near_omni_client.providers.evm.alchemy_provider import AlchemyFactoryProvider
 
-# async def execute_aave_to_rebalancer_flow(
-#     *,
-#     from_chain_id: int,
-#     to_chain_id: int,
-#     amount: int,
-#     near_client: NearClient,
-#     near_contract_id: str,
-#     evm_factory_provider,
-#     agent_address: str,
-#     max_bridge_fee: int,
-#     min_finality_threshold: int,
-# ):
-#     print(f"🟩 Flow Aave→Rebalancer | from={from_chain_id} to={to_chain_id} amount={amount}")
-    # await step_aave_withdraw(
-    #     from_chain_id=from_chain_id, amount=amount,
-    #     near_client=near_client, near_contract_id=near_contract_id, evm_factory_provider=evm_factory_provider
-    # )
-    # burn_hash = await step_cctp_burn(
-    #     from_chain_id=from_chain_id, to_chain_id=to_chain_id, amount=amount,
-    #     agent_address=agent_address, max_bridge_fee=max_bridge_fee, min_finality_threshold=min_finality_threshold,
-    #     near_client=near_client, near_contract_id=near_contract_id, evm_factory_provider=evm_factory_provider
-    # )
-    # att = await _wait_attestation(burn_hash, from_chain_id, to_chain_id, min_finality_threshold)
-    # await step_cctp_mint(
-    #     to_chain_id=to_chain_id, attestation_payload=att,
-    #     near_client=near_client, near_contract_id=near_contract_id, evm_factory_provider=evm_factory_provider
-    # )
-    # await step_rebalancer_deposit(
-    #     to_chain_id=to_chain_id, amount=amount,
-    #     near_client=near_client, near_contract_id=near_contract_id, evm_factory_provider=evm_factory_provider
-    # )
-    # print(" ✅ Flow Aave→Rebalancer completed.\n")
-
-# async def execute_aave_to_aave_flow(
-#     *,
-#     from_chain_id: int,
-#     to_chain_id: int,
-#     amount: int,
-#     near_client: NearClient,
-#     near_contract_id: str,
-#     evm_factory_provider,
-#     agent_address: str,
-#     max_bridge_fee: int,
-#     min_finality_threshold: int,
-# ):
-#     print(f"🟨 Flow Aave→Aave | from={from_chain_id} to={to_chain_id} amount={amount}")
-    # await step_aave_withdraw(
-    #     from_chain_id=from_chain_id, amount=amount,
-    #     near_client=near_client, near_contract_id=near_contract_id, evm_factory_provider=evm_factory_provider
-    # )
-    # burn_hash = await step_cctp_burn(
-    #     from_chain_id=from_chain_id, to_chain_id=to_chain_id, amount=amount,
-    #     agent_address=agent_address, max_bridge_fee=max_bridge_fee, min_finality_threshold=min_finality_threshold,
-    #     near_client=near_client, near_contract_id=near_contract_id, evm_factory_provider=evm_factory_provider
-    # )
-    # att = await _wait_attestation(burn_hash, from_chain_id, to_chain_id, min_finality_threshold)
-    # await step_cctp_mint(
-    #     to_chain_id=to_chain_id, attestation_payload=att,
-    #     near_client=near_client, near_contract_id=near_contract_id, evm_factory_provider=evm_factory_provider
-    # )
-    # await step_aave_supply(
-    #     to_chain_id=to_chain_id, amount=amount,
-    #     near_client=near_client, near_contract_id=near_contract_id, evm_factory_provider=evm_factory_provider
-    # )
-    # print(" ✅ Flow Aave→Aave completed.\n")
 class RebalancerToAave(Strategy):
-    def __init__(self, *, rebalancer_contract: RebalancerContract) -> None:
+    def __init__(self, *, rebalancer_contract: RebalancerContract, evm_factory_provider: AlchemyFactoryProvider, vault_address: str, config: Config) -> None:
         self.rebalancer_contract = rebalancer_contract
+        self.evm_factory_provider = evm_factory_provider
+        self.vault_address = vault_address
+        self.config = config
 
     async def execute(self, *, from_chain_id: int, to_chain_id: int, amount: int) -> None:
         print(f"🟩 Flow Rebalancer→Aave | from={from_chain_id} to={to_chain_id} amount={amount}")
         nonce = await self.rebalancer_contract.start_rebalance(flow=Flow.RebalancerToAave, source_chain=from_chain_id, destination_chain=to_chain_id, expected_amount=amount)
-        withdraw_payload = await self.rebalancer_contract.build_aave_withdraw_tx(from_chain_id=from_chain_id, amount=amount)
-        # await tx_propagator.send_raw_tx(withdraw_payload)
-        # burn_payload = await self.rebalancer_contract.build_cctp_burn_tx(from_chain_id=from_chain_id, to_chain_id=to_chain_id, amount=amount, nonce=nonce)
+        withdraw_payload = await self.rebalancer_contract.build_and_sign_withdraw_for_crosschain_allocation_tx(source_chain=from_chain_id, amount=amount, to=self.vault_address)
+        network_id = from_chain_id_to_network(from_chain_id)
+
+        web3_instance = self.evm_factory_provider.get_provider(network_id)
+        try:
+            if not web3_instance:
+                raise ValueError("Web3 provider is not initialized.")
+        except Exception as e:
+            print(f"Error getting web3 instance: {e}")
+            return
+        
+        try:
+            tx_hash = web3_instance.eth.send_raw_transaction(withdraw_payload)
+            print(f"tx_hash (hex) 0x{tx_hash.hex()}")
+        except Exception as e:
+            print(f"Error sending raw transaction: {e}")
+            return
+
+        # TODO: Fix que es lo que paso aqui o sea los args
+        burn_payload = await self.rebalancer_contract.build_and_sign_cctp_burn_tx(from_chain_id=from_chain_id, to_chain_id=to_chain_id, amount=amount, nonce=nonce)
+        try:
+            tx_hash = web3_instance.eth.send_raw_transaction(burn_payload)
+            print(f"tx_hash (hex) 0x{tx_hash.hex()}")
+        except Exception as e:
+            print(f"Error sending raw transaction: {e}")
+            return
+
         # att  = await wait_for_attestation(burn_tx_hash=burn, from_chain_id=from_chain_id,
         #                            to_chain_id=to_chain_id, min_finality_threshold=self.rebalancer_contract.min_finality)
         # mint_payload = await self.rebalancer_contract.build_cctp_mint_tx(to_chain_id=to_chain_id, attestation_payload=att)

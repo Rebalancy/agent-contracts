@@ -2,13 +2,16 @@ from near_omni_client.json_rpc.client import NearClient
 from web3 import Web3
 
 from .strategy import Strategy
-from ..rebalancer_contract import RebalancerContract
-from ..types import Flow
-# from .steps import step_cctp_burn, step_aave_supply, step_aave_withdraw, step_cctp_mint, step_rebalancer_deposit, step_rebalancer_withdraw_to_allocate, wait_for_attestation
+from config import Config
+from rebalancer_contract import RebalancerContract
+from tx_types import Flow
 
 class AaveToAave(Strategy):
-    def __init__(self, *, rebalancer_contract: RebalancerContract) -> None:
+    def __init__(self, *, rebalancer_contract: RebalancerContract, evm_factory_provider, vault_address: str, config: Config) -> None:
         self.rebalancer_contract = rebalancer_contract
+        self.evm_factory_provider = evm_factory_provider
+        self.vault_address = vault_address
+        self.config = config
 
     async def execute(self, *, from_chain_id: int, to_chain_id: int, amount: int) -> None:
         print(f"🟦 Flow Rebalancer→Aave | from={from_chain_id} to={to_chain_id} amount={amount}")

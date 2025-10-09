@@ -1,5 +1,6 @@
 import base64
-import json
+import ast
+
 from typing import Any, Dict
 
 from near_omni_client.json_rpc.client import NearClient
@@ -7,19 +8,26 @@ from near_omni_client.wallets.near_wallet import NearWallet
 from near_omni_client.transactions import TransactionBuilder, ActionFactory
 from near_omni_client.transactions.utils import decode_key
 from near_omni_client.providers.interfaces import IProviderFactory
-from .evm_transaction import create_partial_tx
-from .types import Flow
-from .utils import from_chain_id_to_network, parse_chain_configs, parse_u32_result, parse_chain_balances
-from .gas_estimator import GasEstimator
+
+from evm_transaction import create_partial_tx
+from tx_types import Flow
+from config import Config
+from gas_estimator import GasEstimator
+
+from utils import from_chain_id_to_network, parse_chain_configs, parse_u32_result, parse_chain_balances, extract_signed_rlp
+
+TGAS = 1_000_000_000_000  # 1 TeraGas
 
 class RebalancerContract:
-    def __init__(self, near_client: NearClient, near_wallet: NearWallet, near_contract_id: str, agent_address: str, gas_estimator: GasEstimator, evm_provider: IProviderFactory) -> None:
+    def __init__(self, near_client: NearClient, near_wallet: NearWallet, near_contract_id: str, agent_address: str, gas_estimator: GasEstimator, evm_provider: IProviderFactory, config: Config) -> None:
         self.near_client = near_client
         self.near_contract_id = near_contract_id
         self.near_wallet = near_wallet
         self.agent_address = agent_address
         self.gas_estimator = gas_estimator
         self.evm_provider = evm_provider
+        self.config = config
+        self.agent_address_as_bytes32 = bytes.fromhex(agent_address[2:]).rjust(32, b'\0') # Convert to bytes32 TODO: Move to utils
 
     async def get_all_configs(self):
         chain_config_raw = await self.near_client.call_contract(
@@ -56,7 +64,7 @@ class RebalancerContract:
         result = await self._sign_and_submit_transaction(
             method="start_rebalance",
             args=args,
-            gas=300_000_000_000_000,
+            gas=300_000_000_000_000, # TODO: Make it constant or from ENV Vars
             deposit=0
         )
         print("result", result)
@@ -70,51 +78,122 @@ class RebalancerContract:
         
         return nonce
         
+    async def build_withdraw_for_crosschain_allocation_tx(self, amount: int, cross_chain_a_token_balance: Any = None):
+        print(f"Building withdraw_for_crosschain_allocation tx")
+        args = {
+            "amount": amount,
+            "cross_chain_a_token_balance": cross_chain_a_token_balance
+        }
 
-    async def build_withdraw_for_crosschain_allocation_tx(self, nonce: int, source_chain: int, destination_chain: int, amount: int):
+        response = await self.near_client.call_contract(
+            contract_id=self.near_contract_id,
+            method="build_withdraw_for_crosschain_allocation_tx",
+            args=args
+        )
+        raw = response.result
+        as_str = bytes(raw).decode("utf-8")
+        int_list = ast.literal_eval(as_str)
+        payload_bytes = bytes(int_list)
+        return payload_bytes
+
+    async def build_and_sign_withdraw_for_crosschain_allocation_tx(self, source_chain: int, amount: int, to: str):
         source_chain_as_network = from_chain_id_to_network(source_chain)
+        input_payload = await self.build_withdraw_for_crosschain_allocation_tx(amount=amount)
+        gas_limit = self.gas_estimator.estimate_gas_limit(source_chain_as_network, self.agent_address, to, input_payload)
+        
         args = {
             "rebalancer_args": {
-                "amount": 1,
-                "partial_transaction": create_partial_tx(source_chain_as_network, self.agent_address, self.evm_provider, self.gas_estimator),
+                "amount": amount,
+                "partial_transaction": create_partial_tx(source_chain_as_network, self.agent_address, self.evm_provider, self.gas_estimator, gas_limit).to_dict(),
                 "cross_chain_a_token_balance": None
             },
-            "callback_gas_tgas": destination_chain
+            "callback_gas_tgas": self.config.callback_gas_tgas
         }
+
         result = await self._sign_and_submit_transaction(
-            method="withdraw_for_crosschain_allocation",
+            method="build_and_sign_withdraw_for_crosschain_allocation_tx",
             args=args,
-            gas=300_000_000_000_000,
+            gas=self.config.tx_tgas * TGAS,
             deposit=0
         )
 
+        success_value_b64 = result.status.get("SuccessValue")
+        if not success_value_b64:
+            raise Exception("withdraw_for_crosschain_allocation didn't return SuccessValue")
+
+        signed_rlp = extract_signed_rlp(success_value_b64)
+                
+        return signed_rlp
+
+    async def build_cctp_burn_tx(self, source_chain: int, destination_domain: int, amount: int, burn_token: str, to: str):
+        print(f"Building cctp_burn tx")
+        source_chain_as_network = from_chain_id_to_network(source_chain)
+        input_payload = await self.build_withdraw_for_crosschain_allocation_tx(amount=amount) # TODO.....
+        gas_limit = self.gas_estimator.estimate_gas_limit(source_chain_as_network, self.agent_address, to, input_payload)
+        burn_token_as_bytes32 = bytes.fromhex(burn_token[2:]).rjust(32, b'\0') # TODO
+        
+        args = {
+            "amount": amount,
+            "destination_domain": destination_domain,
+            "mint_recipient": self.agent_address_as_bytes32,
+            "burn_token": burn_token_as_bytes32,
+            "destination_caller": self.agent_address_as_bytes32,
+            "max_fee": self.config.max_bridge_fee,
+            "min_finality_threshold": self.config.min_bridge_finality_threshold,
+            "partial_burn_transaction": create_partial_tx(source_chain_as_network, self.agent_address, self.evm_provider, self.gas_estimator, gas_limit).to_dict()
+        }
+
+        response = await self.near_client.call_contract(
+            contract_id=self.near_contract_id,
+            method="build_cctp_burn_tx",
+            args=args
+        )
+
+        raw = response.result
+        as_str = bytes(raw).decode("utf-8")
+        int_list = ast.literal_eval(as_str)
+        payload_bytes = bytes(int_list)
+        
+        return payload_bytes
+
+    async def build_and_sign_cctp_burn_tx(self, source_chain: int, to_chain_id: int, amount: int, burn_token: str):
+        source_chain_as_network = from_chain_id_to_network(source_chain)
+        destination_domain = 1 # TODO: Convert esto
+        input_payload = await self.build_cctp_burn_tx(source_chain=source_chain, destination_domain=destination_domain, amount=amount, burn_token=burn_token, mint_recipient=self.agent_address, destination_caller=self.agent_address, max_fee=1000000000, min_finality_threshold=12) # TODO.....
+        gas_limit = self.gas_estimator.estimate_gas_limit(source_chain_as_network, self.agent_address, self.evm_provider, input_payload)
+        print(f"Estimated gas limit: {gas_limit}")
+        
+        args = {
+            "args": {
+                "amount": amount,
+                "destination_domain": to_chain_id,
+                "mint_recipient": self.agent_address,
+                "burn_token": burn_token,
+                "destination_caller": self.agent_address,
+                "max_fee": self.config.max_bridge_fee,
+                "min_finality_threshold": self.config.min_bridge_finality_threshold,
+                "partial_burn_transaction": create_partial_tx(source_chain_as_network, self.agent_address, self.evm_provider, self.gas_estimator, gas_limit).to_dict()
+            },
+            "callback_gas_tgas": self.config.callback_gas_tgas
+        }
+        
+        result = await self._sign_and_submit_transaction(
+            method="build_and_sign_cctp_burn_tx",
+            args=args,
+            gas=self.config.tx_tgas * TGAS,
+            deposit=0
+        )
         print("result", result)
 
         success_value_b64 = result.status.get("SuccessValue")
         if not success_value_b64:
             raise Exception("withdraw_for_crosschain_allocation didn't return SuccessValue")
 
-        nonce = int(base64.b64decode(success_value_b64).decode())
-        print(f"✅ nonce = {nonce}")
-        
-        # call get_signed_transactions
-        signed_transactions_result = await self.near_client.call_contract(
-            contract_id=self.near_contract_id,
-            method="get_signed_transactions",
-            args={
-                "nonce": nonce
-            }
-        )
-
-        print("signed_transactions result", signed_transactions_result)
-
-        raw_result = signed_transactions_result.result  # list[int] de ASCII codes
-        
-        parsed = json.loads(bytes(raw_result).decode("utf-8"))  # ahora sí lista de listas de bytes
-        
-        signed_transactions_bytes = [bytes(tx) for tx in parsed]
-        
-        print("✅ signed_transactions_bytes:", signed_transactions_bytes)
+        print("success_value_b64", success_value_b64)
+        signed_rlp = extract_signed_rlp(success_value_b64)
+                
+        return signed_rlp
+    
 
     async def _sign_and_submit_transaction(self, *, method: str, args: Dict[str, Any], gas: int, deposit: int):
         public_key_str = await self.near_wallet.get_public_key()
@@ -148,3 +227,4 @@ class RebalancerContract:
         print("Sending transaction to NEAR network...")
         result = await self.near_client.send_raw_transaction(signed_tx_base64)
         return result
+    
