@@ -1,18 +1,20 @@
+from typing import Dict
 from near_omni_client.providers.evm.alchemy_provider import AlchemyFactoryProvider
 
 from .strategy import Strategy
 from .broadcaster import broadcast
+from config import Config
 from rebalancer_contract import RebalancerContract
 from tx_types import Flow
-from config import Config
-from utils import from_chain_id_to_network
+from utils import address_to_bytes32, from_chain_id_to_network
 
 class RebalancerToAave(Strategy):
-    def __init__(self, *, rebalancer_contract: RebalancerContract, evm_factory_provider: AlchemyFactoryProvider, vault_address: str, config: Config) -> None:
+    def __init__(self, *, rebalancer_contract: RebalancerContract, evm_factory_provider: AlchemyFactoryProvider, vault_address: str, config: Config, remote_config: Dict[str, dict]) -> None:
         self.rebalancer_contract = rebalancer_contract
         self.evm_factory_provider = evm_factory_provider
         self.vault_address = vault_address
         self.config = config
+        self.remote_config = remote_config
 
     async def execute(self, *, from_chain_id: int, to_chain_id: int, amount: int) -> None:
         print(f"🟩 Flow Rebalancer→Aave | from={from_chain_id} to={to_chain_id} amount={amount}")
@@ -33,8 +35,11 @@ class RebalancerToAave(Strategy):
             return
         
         # Step 3: Burn on source chain to initiate CCTP transfer
-        # TODO: De donde saco el burn_token? que es USDC 
-        burn_payload = await self.rebalancer_contract.build_and_sign_cctp_burn_tx(source_chain=from_chain_id, to_chain_id=to_chain_id, amount=amount, burn_token=self.vault_address)
+        burn_token = self.remote_config[from_chain_id]["aave"]["asset"]
+        print(f"Using burn token: {burn_token} on chainId={from_chain_id}")
+        burn_token_as_bytes32 = address_to_bytes32(burn_token)
+        print(f"Using burn token (bytes32): {burn_token_as_bytes32} on chainId={from_chain_id}")
+        burn_payload = await self.rebalancer_contract.build_and_sign_cctp_burn_tx(source_chain=from_chain_id, to_chain_id=to_chain_id, amount=amount, burn_token=burn_token_as_bytes32)
         try:
             burn_tx_hash = broadcast(web3_instance, burn_payload)
         except Exception as e:
