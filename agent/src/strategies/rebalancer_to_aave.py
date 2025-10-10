@@ -37,9 +37,7 @@ class RebalancerToAave(Strategy):
         # Step 3: Burn on source chain to initiate CCTP transfer
         burn_token = self.remote_config[from_chain_id]["aave"]["asset"]
         print(f"Using burn token: {burn_token} on chainId={from_chain_id}")
-        burn_token_as_bytes32 = address_to_bytes32(burn_token)
-        print(f"Using burn token (bytes32): {burn_token_as_bytes32} on chainId={from_chain_id}")
-        burn_payload = await self.rebalancer_contract.build_and_sign_cctp_burn_tx(source_chain=from_chain_id, to_chain_id=to_chain_id, amount=amount, burn_token=burn_token_as_bytes32)
+        burn_payload = await self.rebalancer_contract.build_and_sign_cctp_burn_tx(source_chain=from_chain_id, to_chain_id=to_chain_id, amount=amount, burn_token=burn_token,to=self.vault_address)
         try:
             burn_tx_hash = broadcast(web3_instance, burn_payload)
         except Exception as e:
@@ -47,7 +45,7 @@ class RebalancerToAave(Strategy):
             return
     
         # Step 4: Wait for attestation and mint on destination chain
-        print(f"Burn transaction hash: {burn_tx_hash.hex()}")
+        print(f"Burn transaction hash: {burn_tx_hash}")
         print("⏳ Waiting for attestation and mint on destination chain...")
         # Step 5: Deposit into Aave on destination chain
         # att  = await wait_for_attestation(burn_tx_hash=burn, from_chain_id=from_chain_id,
