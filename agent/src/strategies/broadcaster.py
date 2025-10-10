@@ -41,7 +41,7 @@ def broadcast(web3, payload: bytes) -> str:
         # Detect chain and build explorer link
         chain_id = getattr(web3.eth, "chain_id", None)
         explorer_base = EXPLORERS.get(chain_id)
-        explorer_link = f"{explorer_base}{hex_hash}" if explorer_base else None
+        explorer_link = f"{explorer_base}0x{hex_hash}" if explorer_base else None
 
         # Log result
         if explorer_link:
