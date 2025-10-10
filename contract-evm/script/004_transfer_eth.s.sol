@@ -17,7 +17,7 @@ contract TransferETHScript is BaseScript {
     using DeployerUtils for Vm;
     using DeploymentUtils for Vm;
 
-    uint256 public constant AMOUNT = 0.3 ether;
+    uint256 public constant AMOUNT = 0.1 ether;
 
     constructor() {
         _loadConfiguration();
