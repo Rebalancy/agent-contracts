@@ -125,17 +125,19 @@ class RebalancerContract:
                 
         return signed_rlp
 
-    async def build_cctp_burn_tx(self, destination_domain: int, amount: int, burn_token: bytes):
+    async def build_cctp_burn_tx(self, destination_domain: int, amount: int, burn_token: str):
         print(f"Building cctp_burn tx")        
         args = {
             "amount": amount,
             "destination_domain": destination_domain,
-            "mint_recipient": self.agent_address_as_bytes32,
+            "mint_recipient": "0x" + self.agent_address_as_bytes32.hex(),
             "burn_token": burn_token,
-            "destination_caller": self.agent_address_as_bytes32,
+            "destination_caller": "0x" + self.agent_address_as_bytes32.hex(),
             "max_fee": self.config.max_bridge_fee,
             "min_finality_threshold": self.config.min_bridge_finality_threshold
         }
+        print("ARGS build_cctp_burn_tx:", args)
+        print("ARGS TYPES:", {k: type(v) for k, v in args.items()})
 
         response = await self.near_client.call_contract(
             contract_id=self.near_contract_id,
@@ -144,27 +146,27 @@ class RebalancerContract:
         )
         print("Created cctp_burn payload")
         raw = response.result
+        print("raw response", raw)
         as_str = bytes(raw).decode("utf-8")
         int_list = ast.literal_eval(as_str)
         payload_bytes = bytes(int_list)
         
         return payload_bytes
 
-    async def build_and_sign_cctp_burn_tx(self, source_chain: int, to_chain_id: int, amount: int, burn_token: str):
+    async def build_and_sign_cctp_burn_tx(self, source_chain: int, to_chain_id: int, amount: int, burn_token: str, to: str):
         source_chain_as_network = from_chain_id_to_network(source_chain)
-        destination_domain = from_chain_id_to_network(to_chain_id).domain
-        burn_token_as_bytes32 = address_to_bytes32(burn_token)
-        input_payload = await self.build_cctp_burn_tx(destination_domain=destination_domain, amount=amount, burn_token=burn_token_as_bytes32)
-        gas_limit = self.gas_estimator.estimate_gas_limit(source_chain_as_network, self.agent_address, self.evm_provider, input_payload)
+        destination_domain = int(from_chain_id_to_network(to_chain_id).domain)
+        input_payload = await self.build_cctp_burn_tx(destination_domain=destination_domain, amount=amount, burn_token=burn_token)
+        gas_limit = self.gas_estimator.estimate_gas_limit(source_chain_as_network, self.agent_address, to, input_payload)
         print(f"Estimated gas limit: {gas_limit}")
         
         args = {
             "args": {
                 "amount": amount,
                 "destination_domain": destination_domain,
-                "mint_recipient": self.agent_address_as_bytes32,
-                "burn_token": burn_token_as_bytes32,
-                "destination_caller": self.agent_address_as_bytes32,
+                "mint_recipient": "0x" + self.agent_address_as_bytes32.hex(),
+                "burn_token": burn_token,
+                "destination_caller": "0x" + self.agent_address_as_bytes32.hex(),
                 "max_fee": self.config.max_bridge_fee,
                 "min_finality_threshold": self.config.min_bridge_finality_threshold,
                 "partial_burn_transaction": create_partial_tx(source_chain_as_network, self.agent_address, self.evm_provider, self.gas_estimator, gas_limit).to_dict()
