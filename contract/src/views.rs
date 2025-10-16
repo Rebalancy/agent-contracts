@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use crate::{
     encoders,
-    types::{ActiveSession, ActivityLog, CacheKey, ChainId, Config, Worker},
+    types::{ActiveSession, ActivityLog, CacheKey, ChainId, Config, Flow, Step, Worker},
     Contract, ContractExt,
 };
 
@@ -162,5 +162,33 @@ impl Contract {
             amount,
             cross_chain_a_token_balance.unwrap_or(0),
         )
+    }
+
+    pub fn get_pending_step(&self) -> Option<Step> {
+        if let Some(session) = &self.active_session {
+            for &st in session.flow.sequence() {
+                if !self.has_signature(st) {
+                    return Some(st);
+                }
+            }
+            None // it means all steps are signed
+        } else {
+            None
+        }
+    }
+
+    pub fn get_active_session_info(&self) -> Option<(u64, Flow, Option<Step>)> {
+        if let Some(session) = &self.active_session {
+            let mut pending = None;
+            for &st in session.flow.sequence() {
+                if !self.has_signature(st) {
+                    pending = Some(st);
+                    break;
+                }
+            }
+            Some((session.nonce, session.flow.clone(), pending))
+        } else {
+            None
+        }
     }
 }

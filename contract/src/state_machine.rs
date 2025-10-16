@@ -2,7 +2,6 @@ use near_sdk::{env, require};
 use omni_transaction::evm::EVMTransaction;
 
 use crate::{
-    constants::OPERATIONS_TIMEOUT,
     types::{CacheKey, ChainId, Config, Flow, PayloadType, Step},
     Contract,
 };
@@ -56,7 +55,7 @@ impl Contract {
         );
     }
 
-    fn has_signature(&self, step: Step) -> bool {
+    pub fn has_signature(&self, step: Step) -> bool {
         let nonce = self.get_active_session().nonce;
         self.signatures_by_nonce_and_type
             .contains_key(&CacheKey::new(nonce, step as u8))
@@ -73,17 +72,6 @@ impl Contract {
     }
 
     pub(crate) fn assert_no_active_session(&mut self) {
-        self.clear_if_timed_out();
         require!(self.active_session.is_none(), "Another action in progress");
-    }
-
-    fn clear_if_timed_out(&mut self) {
-        if let Some(session) = &self.active_session {
-            if env::block_timestamp_ms() - session.started_at > OPERATIONS_TIMEOUT {
-                self.logs.remove(&session.nonce);
-                self.active_session = None;
-                env::log_str("Session timed out and cleared");
-            }
-        }
     }
 }
