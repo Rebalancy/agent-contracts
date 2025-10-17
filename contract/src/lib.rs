@@ -380,6 +380,7 @@ mod tests {
                 cctp: CCTPConfig {
                     messenger_address: "0xMessengerAddress".to_string(),
                     transmitter_address: "0xTransmitterAddress".to_string(),
+                    usdc_address: "0xUSDCAddress".to_string(),
                 },
                 aave: AaveConfig {
                     asset: "0xAaveAssetAddress".to_string(),
