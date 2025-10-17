@@ -54,7 +54,8 @@ async fn deploy_and_initialise(
                     },
                     "cctp": {
                         "messenger_address": cctp.get("messenger").map(|v| v.as_str().unwrap()).unwrap_or(zero_address),
-                        "transmitter_address": cctp.get("transmitter").map(|v| v.as_str().unwrap()).unwrap_or(zero_address)
+                        "transmitter_address": cctp.get("transmitter").map(|v| v.as_str().unwrap()).unwrap_or(zero_address),
+                        "usdc_address": cctp.get("usdc").map(|v| v.as_str().unwrap()).unwrap_or(zero_address)
                     },
                     "rebalancer": {
                         "vault_address": zero_address

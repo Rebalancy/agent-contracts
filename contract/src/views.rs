@@ -89,6 +89,13 @@ impl Contract {
     }
 
     // Transaction Input Builders
+    pub fn build_cctp_approve_before_burn_tx(&self, spender: String, amount: u128) -> Vec<u8> {
+        encoders::cctp::usdc::encode_approve(
+            Address::from_str(&spender).expect("Invalid spender address"),
+            U256::from(amount),
+        )
+    }
+
     pub fn build_cctp_burn_tx(
         &self,
         amount: u128,

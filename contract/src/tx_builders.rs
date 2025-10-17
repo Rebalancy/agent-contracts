@@ -1,7 +1,17 @@
 use crate::encoders;
-use crate::types::{AaveArgs, AaveConfig, CCTPBurnArgs, CCTPMintArgs, RebalancerArgs};
+use crate::types::{
+    AaveArgs, AaveConfig, CCTPBeforeBurnArgs, CCTPBurnArgs, CCTPMintArgs, RebalancerArgs,
+};
 use alloy_primitives::{Address, B256, U256};
 use std::str::FromStr;
+
+pub fn build_cctp_approve_before_burn_tx(args: CCTPBeforeBurnArgs) -> Vec<u8> {
+    let input = encoders::cctp::usdc::encode_approve(
+        Address::from_str(&args.spender).expect("Invalid spender address"),
+        U256::from(args.amount),
+    );
+    input
+}
 
 pub fn build_cctp_burn_tx(args: CCTPBurnArgs) -> Vec<u8> {
     let input = encoders::cctp::messenger::encode_deposit_for_burn(

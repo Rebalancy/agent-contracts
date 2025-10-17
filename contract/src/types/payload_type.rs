@@ -23,12 +23,13 @@ use schemars::JsonSchema;
 pub enum PayloadType {
     AaveSupply = 0,
     AaveWithdraw = 1,
-    CCTPBurn = 2,
-    CCTPMint = 3,
-    RebalancerWithdrawToAllocate = 4,
-    RebalancerUpdateCrossChainBalance = 5,
-    RebalancerDeposit = 6,
-    RebalancerSignCrossChainBalance = 7,
+    CCTPApproveBeforeBurn = 2,
+    CCTPBurn = 3,
+    CCTPMint = 4,
+    RebalancerWithdrawToAllocate = 5,
+    RebalancerUpdateCrossChainBalance = 6,
+    RebalancerDeposit = 7,
+    RebalancerSignCrossChainBalance = 8,
 }
 
 impl From<u8> for PayloadType {
@@ -36,12 +37,13 @@ impl From<u8> for PayloadType {
         match value {
             0 => PayloadType::AaveSupply,
             1 => PayloadType::AaveWithdraw,
-            2 => PayloadType::CCTPBurn,
-            3 => PayloadType::CCTPMint,
-            4 => PayloadType::RebalancerWithdrawToAllocate,
-            5 => PayloadType::RebalancerUpdateCrossChainBalance,
-            6 => PayloadType::RebalancerDeposit,
-            7 => PayloadType::RebalancerSignCrossChainBalance,
+            2 => PayloadType::CCTPApproveBeforeBurn,
+            3 => PayloadType::CCTPBurn,
+            4 => PayloadType::CCTPMint,
+            5 => PayloadType::RebalancerWithdrawToAllocate,
+            6 => PayloadType::RebalancerUpdateCrossChainBalance,
+            7 => PayloadType::RebalancerDeposit,
+            8 => PayloadType::RebalancerSignCrossChainBalance,
             _ => panic!("Unknown PayloadType: {}", value),
         }
     }

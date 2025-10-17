@@ -4,8 +4,9 @@ use crate::{
     constants::{KEY_VERSION, PATH},
     external::this_contract,
     types::{
-        AaveArgs, ActiveSession, ActivityLog, AgentActionType, CCTPBurnArgs, CCTPMintArgs,
-        CacheKey, ChainConfig, ChainId, Config, Flow, PayloadType, RebalancerArgs, Step, Worker,
+        AaveArgs, ActiveSession, ActivityLog, AgentActionType, CCTPBeforeBurnArgs, CCTPBurnArgs,
+        CCTPMintArgs, CacheKey, ChainConfig, ChainId, Config, Flow, PayloadType, RebalancerArgs,
+        Step, Worker,
     },
 };
 use alloy_primitives::Address;
@@ -183,6 +184,64 @@ impl Contract {
         nonce
     }
 
+    pub fn build_and_sign_withdraw_for_crosschain_allocation_tx(
+        &mut self,
+        rebalancer_args: RebalancerArgs,
+        callback_gas_tgas: u64,
+    ) -> Promise {
+        self.assert_agent_is_calling();
+        let cfg =
+            self.get_chain_config_from_step_and_current_session(Step::RebalancerWithdrawToAllocate);
+
+        let mut tx = rebalancer_args.clone().partial_transaction;
+        tx.input = tx_builders::build_withdraw_for_crosschain_allocation_tx(rebalancer_args);
+        tx.to = Some(
+            Address::from_str(&cfg.rebalancer.vault_address)
+                .expect("Invalid vault")
+                .into_array(),
+        );
+
+        self.trigger_signature(Step::RebalancerWithdrawToAllocate, tx, callback_gas_tgas)
+    }
+
+    pub fn build_and_sign_cctp_approve_before_burn_tx(
+        &mut self,
+        args: CCTPBeforeBurnArgs,
+        callback_gas_tgas: u64,
+    ) -> Promise {
+        self.assert_agent_is_calling();
+        let cfg = self.get_chain_config_from_step_and_current_session(Step::CCTPApproveBeforeBurn);
+
+        let mut tx = args.clone().partial_burn_transaction;
+        tx.input = tx_builders::build_cctp_approve_before_burn_tx(args);
+        tx.to = Some(
+            Address::from_str(&cfg.cctp.usdc_address)
+                .expect("Invalid USDC address")
+                .into_array(),
+        );
+
+        self.trigger_signature(Step::CCTPApproveBeforeBurn, tx, callback_gas_tgas)
+    }
+
+    pub fn build_and_sign_cctp_burn_tx(
+        &mut self,
+        args: CCTPBurnArgs,
+        callback_gas_tgas: u64,
+    ) -> Promise {
+        self.assert_agent_is_calling();
+        let cfg = self.get_chain_config_from_step_and_current_session(Step::CCTPBurn);
+
+        let mut tx = args.clone().partial_burn_transaction;
+        tx.input = tx_builders::build_cctp_burn_tx(args);
+        tx.to = Some(
+            Address::from_str(&cfg.cctp.messenger_address)
+                .expect("Invalid messenger")
+                .into_array(),
+        );
+
+        self.trigger_signature(Step::CCTPBurn, tx, callback_gas_tgas)
+    }
+
     pub fn build_and_sign_aave_supply_tx(
         &mut self,
         args: AaveArgs,
@@ -191,7 +250,7 @@ impl Contract {
         self.assert_agent_is_calling();
         self.assert_step_is_next(Step::AaveSupply);
 
-        let cfg = self.get_chain_config_for_step(Step::AaveSupply);
+        let cfg = self.get_chain_config_from_step_and_current_session(Step::AaveSupply);
 
         let mut tx = args.clone().partial_transaction;
         tx.input = tx_builders::build_aave_supply_tx(args, cfg.aave.clone());
@@ -210,7 +269,7 @@ impl Contract {
         callback_gas_tgas: u64,
     ) -> Promise {
         self.assert_agent_is_calling();
-        let cfg = self.get_chain_config_for_step(Step::AaveWithdraw);
+        let cfg = self.get_chain_config_from_step_and_current_session(Step::AaveWithdraw);
 
         let mut tx = args.clone().partial_transaction;
         tx.input = tx_builders::build_aave_withdraw_tx(args, cfg.aave.clone());
@@ -223,32 +282,13 @@ impl Contract {
         self.trigger_signature(Step::AaveWithdraw, tx, callback_gas_tgas)
     }
 
-    pub fn build_and_sign_cctp_burn_tx(
-        &mut self,
-        args: CCTPBurnArgs,
-        callback_gas_tgas: u64,
-    ) -> Promise {
-        self.assert_agent_is_calling();
-        let cfg = self.get_chain_config_for_step(Step::CCTPBurn);
-
-        let mut tx = args.clone().partial_burn_transaction;
-        tx.input = tx_builders::build_cctp_burn_tx(args);
-        tx.to = Some(
-            Address::from_str(&cfg.cctp.messenger_address)
-                .expect("Invalid messenger")
-                .into_array(),
-        );
-
-        self.trigger_signature(Step::CCTPBurn, tx, callback_gas_tgas)
-    }
-
     pub fn build_and_sign_cctp_mint_tx(
         &mut self,
         args: CCTPMintArgs,
         callback_gas_tgas: u64,
     ) -> Promise {
         self.assert_agent_is_calling();
-        let cfg = self.get_chain_config_for_step(Step::CCTPMint);
+        let cfg = self.get_chain_config_from_step_and_current_session(Step::CCTPMint);
 
         let mut tx = args.clone().partial_mint_transaction;
         tx.input = tx_builders::build_cctp_mint_tx(args);
@@ -261,32 +301,13 @@ impl Contract {
         self.trigger_signature(Step::CCTPBurn, tx, callback_gas_tgas)
     }
 
-    pub fn build_and_sign_withdraw_for_crosschain_allocation_tx(
-        &mut self,
-        rebalancer_args: RebalancerArgs,
-        callback_gas_tgas: u64,
-    ) -> Promise {
-        self.assert_agent_is_calling();
-        let cfg = self.get_chain_config_for_step(Step::RebalancerWithdrawToAllocate);
-
-        let mut tx = rebalancer_args.clone().partial_transaction;
-        tx.input = tx_builders::build_withdraw_for_crosschain_allocation_tx(rebalancer_args);
-        tx.to = Some(
-            Address::from_str(&cfg.rebalancer.vault_address)
-                .expect("Invalid vault")
-                .into_array(),
-        );
-
-        self.trigger_signature(Step::RebalancerWithdrawToAllocate, tx, callback_gas_tgas)
-    }
-
     pub fn build_and_sign_return_funds_tx(
         &mut self,
         args: RebalancerArgs,
         callback_gas_tgas: u64,
     ) -> Promise {
         self.assert_agent_is_calling();
-        let cfg = self.get_chain_config_for_step(Step::RebalancerDeposit);
+        let cfg = self.get_chain_config_from_step_and_current_session(Step::RebalancerDeposit);
 
         let mut tx = args.clone().partial_transaction;
         tx.input = tx_builders::build_return_funds_tx(args);

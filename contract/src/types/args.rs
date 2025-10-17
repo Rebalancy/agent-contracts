@@ -19,6 +19,14 @@ pub struct CCTPMintArgs {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(crate = "near_sdk::serde")]
+pub struct CCTPBeforeBurnArgs {
+    pub spender: String,
+    pub amount: u128,
+    pub partial_burn_transaction: EVMTransaction,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
+#[serde(crate = "near_sdk::serde")]
 pub struct CCTPBurnArgs {
     pub amount: u128,
     pub destination_domain: u32,

@@ -25,6 +25,7 @@ pub struct AaveConfig {
 pub struct CCTPConfig {
     pub messenger_address: String,
     pub transmitter_address: String,
+    pub usdc_address: String,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Clone, Serialize, Deserialize, JsonSchema, Debug)]

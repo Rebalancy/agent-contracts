@@ -13,13 +13,14 @@ impl Contract {
             .expect("Payload must be 32 bytes long")
     }
 
-    fn get_chain_id_from_the_step(&self, step: Step) -> ChainId {
+    fn get_chain_id_from_the_step_and_current_session(&self, step: Step) -> ChainId {
         let log = self.get_activity_log();
         let flow = self.get_active_session().flow.clone();
 
         match (flow, step) {
             // -------- Aave -> Aave --------
             (Flow::AaveToAave, PayloadType::AaveWithdraw)
+            | (Flow::AaveToAave, PayloadType::CCTPApproveBeforeBurn)
             | (Flow::AaveToAave, PayloadType::CCTPBurn) => log.source_chain,
 
             (Flow::AaveToAave, PayloadType::CCTPMint)
@@ -27,6 +28,7 @@ impl Contract {
 
             // -------- Rebalancer -> Aave --------
             (Flow::RebalancerToAave, PayloadType::RebalancerWithdrawToAllocate)
+            | (Flow::RebalancerToAave, PayloadType::CCTPApproveBeforeBurn)
             | (Flow::RebalancerToAave, PayloadType::CCTPBurn) => log.source_chain,
 
             (Flow::RebalancerToAave, PayloadType::CCTPMint)
@@ -34,6 +36,7 @@ impl Contract {
 
             // -------- Aave -> Rebalancer --------
             (Flow::AaveToRebalancer, PayloadType::AaveWithdraw)
+            | (Flow::AaveToRebalancer, PayloadType::CCTPApproveBeforeBurn)
             | (Flow::AaveToRebalancer, PayloadType::CCTPBurn) => log.source_chain,
 
             (Flow::AaveToRebalancer, PayloadType::CCTPMint)
@@ -43,8 +46,8 @@ impl Contract {
         }
     }
 
-    pub(crate) fn get_chain_config_for_step(&self, step: Step) -> &Config {
-        let chain_id = self.get_chain_id_from_the_step(step);
+    pub(crate) fn get_chain_config_from_step_and_current_session(&self, step: Step) -> &Config {
+        let chain_id = self.get_chain_id_from_the_step_and_current_session(step);
         self.get_chain_config(&chain_id)
     }
 
@@ -73,5 +76,33 @@ impl Contract {
 
     pub(crate) fn assert_no_active_session(&mut self) {
         require!(self.active_session.is_none(), "Another action in progress");
+    }
+}
+
+impl Flow {
+    pub fn sequence(&self) -> &'static [PayloadType] {
+        match self {
+            Flow::AaveToAave => &[
+                PayloadType::AaveWithdraw,
+                PayloadType::CCTPApproveBeforeBurn,
+                PayloadType::CCTPBurn,
+                PayloadType::CCTPMint,
+                PayloadType::AaveSupply,
+            ],
+            Flow::RebalancerToAave => &[
+                PayloadType::RebalancerWithdrawToAllocate,
+                PayloadType::CCTPApproveBeforeBurn,
+                PayloadType::CCTPBurn,
+                PayloadType::CCTPMint,
+                PayloadType::AaveSupply,
+            ],
+            Flow::AaveToRebalancer => &[
+                PayloadType::AaveWithdraw,
+                PayloadType::CCTPApproveBeforeBurn,
+                PayloadType::CCTPBurn,
+                PayloadType::CCTPMint,
+                PayloadType::RebalancerDeposit,
+            ],
+        }
     }
 }
