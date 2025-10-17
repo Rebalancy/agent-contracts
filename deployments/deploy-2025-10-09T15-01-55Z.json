@@ -1,0 +1,8 @@
+{
+  "index": 10,
+  "account_id": "rebalancer-abcdefgh-10.testnet",
+  "network": "testnet",
+  "path_str": "ethereum-1",
+  "evm_address": "0x28bcf9de754381db3aa29b75b56ff540e70a663e",
+  "timestamp": "2025-10-09T15-01-55Z"
+}
