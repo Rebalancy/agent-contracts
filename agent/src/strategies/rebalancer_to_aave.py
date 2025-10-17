@@ -34,8 +34,17 @@ class RebalancerToAave(Strategy):
             print(f"Error broadcasting withdraw transaction: {e}")
             return
         
-        # Step 3: Burn on source chain to initiate CCTP transfer
+        # Step 3: Approve USDC for burn on source chain
         burn_token = self.remote_config[from_chain_id]["aave"]["asset"]
+        spender = self.remote_config[from_chain_id]["cctp"]["messenger_address"] # the messenger contract is the spender
+        approve_payload = await self.rebalancer_contract.build_and_sign_cctp_approve_before_burn_tx(source_chain=from_chain_id, to_chain_id=to_chain_id,amount=amount, spender=spender, to=burn_token)
+        try:
+            broadcast(web3_instance, approve_payload)
+        except Exception as e:
+            print(f"Error broadcasting approve transaction: {e}")
+            return
+        
+        # Step 4: Burn on source chain to initiate CCTP transfer
         print(f"Using burn token: {burn_token} on chainId={from_chain_id}")
         burn_payload = await self.rebalancer_contract.build_and_sign_cctp_burn_tx(source_chain=from_chain_id, to_chain_id=to_chain_id, amount=amount, burn_token=burn_token,to=self.vault_address)
         try:
@@ -53,3 +62,30 @@ class RebalancerToAave(Strategy):
         # mint_payload = await self.rebalancer_contract.build_cctp_mint_tx(to_chain_id=to_chain_id, attestation_payload=att)
         # deposit_payload = await self.rebalancer_contract.build_rebalancer_deposit_tx(to_chain_id=to_chain_id, amount=amount)
         print("✅ Done Rebalancer→Aave\n")
+
+        # Example of CCTP transfer without Rebalancer
+        # messenger_deposit_for_burn_tx_hash = MessengerContract(source_network, wallet).deposit_for_burn(
+        #     amount=to_usdc_units(1000),
+        #     destination_domain=int(destination_network.domain),
+        #     destination_address=address_to_bytes32(wallet.get_wallet_address()),
+        #     token_address=Web3.to_checksum_address(USDCContract.get_address_for_network(source_network)),
+        #     destination_caller=address_to_bytes32(wallet.get_wallet_address()),
+        #     max_fee=to_usdc_units(0.99),
+        #     min_finality_threshold=1000, # check readme for more info about the finality threshold
+        # )
+        # print(f"USDC burned successfully!")
+        # print(f"USDC burned Transaction Hash: 0x{messenger_deposit_for_burn_tx_hash.hex()}")
+        # sleep(5)  # wait for the transaction to be mined
+        # # retrieve attestation
+        # attestation = AttestationService(source_network).retrieve_attestation(f"0x{messenger_deposit_for_burn_tx_hash.hex()}")
+        # print(f"Attestation retrieved successfully!")
+        # print(f"Attestation: {attestation}")
+
+        # sleep(5)  # wait for the transaction to be mined
+        # # mint usdc
+        # usdc_mint_tx_hash = TransmitterContract(destination_network, wallet).mint_usdc(
+        #     attestation_message=attestation.message,
+        #     attestation=attestation.attestation
+        # )
+        # print(f"USDC transfer completed successfully!")
+        # print(f"Transaction Hash: 0x{usdc_mint_tx_hash.hex()}")
