@@ -22,7 +22,7 @@ pub struct CCTPMintArgs {
 pub struct CCTPBeforeBurnArgs {
     pub spender: String,
     pub amount: u128,
-    pub partial_burn_transaction: EVMTransaction,
+    pub partial_transaction: EVMTransaction,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]

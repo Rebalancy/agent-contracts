@@ -125,6 +125,62 @@ class RebalancerContract:
                 
         return signed_rlp
 
+    async def build_cctp_approve_before_burn_tx(self, amount: int, spender: str):
+        print(f"Building cctp_approve_before_burn tx")
+        args = {
+            "amount": amount,
+            "spender": spender,
+        }
+        print("ARGS build_cctp_approve_before_burn_tx:", args)
+        print("ARGS TYPES:", {k: type(v) for k, v in args.items()})
+
+        response = await self.near_client.call_contract(
+            contract_id=self.near_contract_id,
+            method="build_cctp_approve_before_burn_tx",
+            args=args
+        )
+        print("Created cctp_approve_before_burn payload")
+        raw = response.result
+        print("raw response", raw)
+        as_str = bytes(raw).decode("utf-8")
+        int_list = ast.literal_eval(as_str)
+        payload_bytes = bytes(int_list)
+        
+        return payload_bytes
+
+    async def build_and_sign_cctp_approve_before_burn_tx(self, source_chain: int, to_chain_id: int, amount: int, spender: str,to: str):
+        source_chain_as_network = from_chain_id_to_network(source_chain)
+        destination_domain = int(from_chain_id_to_network(to_chain_id).domain)
+        input_payload = await self.build_cctp_approve_before_burn_tx(amount=amount, spender=spender)
+        gas_limit = self.gas_estimator.estimate_gas_limit(source_chain_as_network, self.agent_address, to, input_payload)
+        print(f"Estimated gas limit: {gas_limit}")
+        
+        args = {
+            "args": {
+                "amount": amount,
+                "spender": spender,
+                "partial_transaction": create_partial_tx(source_chain_as_network, self.agent_address, self.evm_provider, self.gas_estimator, gas_limit).to_dict()
+            },
+            "callback_gas_tgas": self.config.callback_gas_tgas
+        }
+        
+        result = await self._sign_and_submit_transaction(
+            method="build_and_sign_cctp_approve_before_burn_tx",
+            args=args,
+            gas=self.config.tx_tgas * TGAS,
+            deposit=0
+        )
+        print("result", result)
+
+        success_value_b64 = result.status.get("SuccessValue")
+        if not success_value_b64:
+            raise Exception("withdraw_for_crosschain_allocation didn't return SuccessValue")
+
+        print("success_value_b64", success_value_b64)
+        signed_rlp = extract_signed_rlp(success_value_b64)
+                
+        return signed_rlp
+
     async def build_cctp_burn_tx(self, destination_domain: int, amount: int, burn_token: str):
         print(f"Building cctp_burn tx")        
         args = {

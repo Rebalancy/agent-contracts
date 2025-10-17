@@ -212,7 +212,7 @@ impl Contract {
         self.assert_agent_is_calling();
         let cfg = self.get_chain_config_from_step_and_current_session(Step::CCTPApproveBeforeBurn);
 
-        let mut tx = args.clone().partial_burn_transaction;
+        let mut tx = args.clone().partial_transaction;
         tx.input = tx_builders::build_cctp_approve_before_burn_tx(args);
         tx.to = Some(
             Address::from_str(&cfg.cctp.usdc_address)
