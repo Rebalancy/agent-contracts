@@ -37,11 +37,11 @@ async fn deploy_and_initialise(
     let configs_json: Vec<Value> = config
         .chain_ids
         .iter()
-        .map(|(key, chain_id_value)| {
-            let chain_id = chain_id_value.as_u64().unwrap();
+        .map(|(chain_id_str, _network_name)| {
+            let chain_id: u64 = chain_id_str.parse().unwrap();
 
-            let cctp = config.cctp_contracts.get(key).and_then(|v| v.as_object()).unwrap();
-            let aave = config.aave_contracts.get(key).and_then(|v| v.as_object()).unwrap();
+            let cctp = config.cctp_contracts.get(chain_id_str).and_then(|v| v.as_object()).unwrap();
+            let aave = config.aave_contracts.get(chain_id_str).and_then(|v| v.as_object()).unwrap();
 
             json!({
                 "chain_id": chain_id,
@@ -104,6 +104,7 @@ fn get_configuration() -> Result<Config, Box<dyn std::error::Error>> {
     let config_str = fs::read_to_string("config.json")?;
     let config: Config = serde_json::from_str(&config_str)?;
 
+    print!("Loaded configuration: {:?}", config);
     Ok(config)
 }
 
