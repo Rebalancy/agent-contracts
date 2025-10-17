@@ -43,6 +43,7 @@ const initArgs = {
                 cctp: {
                     messenger_address: cctp.messenger || zeroAddress,
                     transmitter_address: cctp.transmitter || zeroAddress,
+                    usdc_address: cctp.usdc || zeroAddress,
                 },
                 rebalancer: {
                     vault_address: config.vaultAddress || getVaultAddress(chainId),
