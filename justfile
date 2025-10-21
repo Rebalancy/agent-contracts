@@ -57,3 +57,7 @@ deploy_arbitrum_sepolia:
 seed_agent_address_in_arbitrum_sepolia:
     echo "Seeding agent address with ETH..."
     cd contract-evm && just seed_agent_address_in_arbitrum_sepolia
+
+seed_agent_address_in_optimism_sepolia:
+    echo "Seeding agent address with ETH..."
+    cd contract-evm && just seed_agent_address_in_optimism_sepolia
