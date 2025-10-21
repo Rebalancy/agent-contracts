@@ -242,6 +242,25 @@ impl Contract {
         self.trigger_signature(Step::CCTPBurn, tx, callback_gas_tgas)
     }
 
+    pub fn build_and_sign_cctp_mint_tx(
+        &mut self,
+        args: CCTPMintArgs,
+        callback_gas_tgas: u64,
+    ) -> Promise {
+        self.assert_agent_is_calling();
+        let cfg = self.get_chain_config_from_step_and_current_session(Step::CCTPMint);
+
+        let mut tx = args.clone().partial_mint_transaction;
+        tx.input = tx_builders::build_cctp_mint_tx(args);
+        tx.to = Some(
+            Address::from_str(&cfg.cctp.messenger_address)
+                .expect("Invalid messenger")
+                .into_array(),
+        );
+
+        self.trigger_signature(Step::CCTPMint, tx, callback_gas_tgas)
+    }
+
     pub fn build_and_sign_aave_supply_tx(
         &mut self,
         args: AaveArgs,
@@ -280,25 +299,6 @@ impl Contract {
         );
 
         self.trigger_signature(Step::AaveWithdraw, tx, callback_gas_tgas)
-    }
-
-    pub fn build_and_sign_cctp_mint_tx(
-        &mut self,
-        args: CCTPMintArgs,
-        callback_gas_tgas: u64,
-    ) -> Promise {
-        self.assert_agent_is_calling();
-        let cfg = self.get_chain_config_from_step_and_current_session(Step::CCTPMint);
-
-        let mut tx = args.clone().partial_mint_transaction;
-        tx.input = tx_builders::build_cctp_mint_tx(args);
-        tx.to = Some(
-            Address::from_str(&cfg.cctp.messenger_address)
-                .expect("Invalid messenger")
-                .into_array(),
-        );
-
-        self.trigger_signature(Step::CCTPBurn, tx, callback_gas_tgas)
     }
 
     pub fn build_and_sign_return_funds_tx(
