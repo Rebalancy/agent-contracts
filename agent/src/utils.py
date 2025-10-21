@@ -1,9 +1,10 @@
+import binascii
 import sys
 import ast
 import base64
 import json
-from web3 import Web3
 
+from web3 import Web3
 from typing import Any, Dict
 from near_omni_client.networks import Network
 from near_omni_client.chain_signatures.utils import get_evm_address
@@ -161,6 +162,11 @@ def calculate_evm_address_for_account_id(account_id: str, network: str, path: st
     agent_evm_address = get_evm_address(agent_public_key)
 
     return agent_evm_address
+
+def hex_to_int_list(hex_str: str) -> list[int]:
+    if hex_str.startswith("0x"):
+        hex_str = hex_str[2:]
+    return list(binascii.unhexlify(hex_str))
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
