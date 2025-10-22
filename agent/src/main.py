@@ -50,6 +50,7 @@ async def main():
     rebalancer_contract = RebalancerContract(near_client, near_wallet, config.contract_id, agent_evm_address, gas_estimator=gas_estimator, evm_provider=alchemy_factory_provider, config=config)
     
     configs = await rebalancer_contract.get_all_configs()
+    print("Fetched remote configs for all chains:", configs)
     source_chain_id = await rebalancer_contract.get_source_chain()
     current_allocations = await rebalancer_contract.get_allocations()
 
