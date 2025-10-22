@@ -1,0 +1,58 @@
+{
+  "transactions": [
+    {
+      "hash": "0x9a975dd7f1045283de291caced73e40a53192405bda4fd3cf32c4923dd1ec82b",
+      "transactionType": "CALL",
+      "contractName": null,
+      "contractAddress": "0xfdb7ccf13c2e897ea5bf9f0fc63ba97d644782bf",
+      "function": null,
+      "arguments": null,
+      "transaction": {
+        "from": "0x23bf95de9f90338f973056351c8cd2cb78cbe52f",
+        "to": "0xfdb7ccf13c2e897ea5bf9f0fc63ba97d644782bf",
+        "gas": "0x6aa4",
+        "value": "0x16345785d8a0000",
+        "input": "0x",
+        "nonce": "0xf0",
+        "chainId": "0x66eee"
+      },
+      "additionalContracts": [],
+      "isFixedGasLimit": false
+    }
+  ],
+  "receipts": [
+    {
+      "status": "0x1",
+      "cumulativeGasUsed": "0xa7a8d",
+      "logs": [],
+      "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "type": "0x2",
+      "transactionHash": "0x9a975dd7f1045283de291caced73e40a53192405bda4fd3cf32c4923dd1ec82b",
+      "transactionIndex": "0x6",
+      "blockHash": "0x1080596db1428ac578b5158884fd19deb375ce5d4faa48e92057d3b3b7b0b853",
+      "blockNumber": "0xc57177f",
+      "gasUsed": "0x5208",
+      "effectiveGasPrice": "0x5f5e100",
+      "from": "0x23bf95de9f90338f973056351c8cd2cb78cbe52f",
+      "to": "0xfdb7ccf13c2e897ea5bf9f0fc63ba97d644782bf",
+      "contractAddress": null,
+      "gasUsedForL1": "0x0",
+      "l1BlockNumber": "0x905bdf",
+      "timeboosted": false
+    }
+  ],
+  "libraries": [
+    "src/config/Configuration.ArbitrumSepolia.sol:ConfigurationArbitrumSepolia:0xbAEDEDa67771036907F1650AaDb06C645f7cE543",
+    "src/config/Configuration.Base.sol:ConfigurationBaseMainnet:0xc724402C8C6bef7bFD30C5f5e26A12C9a8248D33",
+    "src/config/Configuration.BaseSepolia.sol:ConfigurationBaseSepolia:0xF5FBD5182356F5EE73198a02eB13dAD9612DF39A",
+    "src/config/Configuration.Ethereum.sol:ConfigurationEthereumMainnet:0x6C6BC06853C6aFa04fD58bb707605C7D2679465B",
+    "src/config/Configuration.EthereumSepolia.sol:ConfigurationEthereumSepolia:0xA1759Fd7414815e88589a600F3708434ccc70d82",
+    "src/config/Configuration.Local.sol:ConfigurationLocal:0xEb0e0C1e3CfF2eAAcb94B498F8E6324e7A7B0a2B",
+    "src/config/Configuration.sol:Configuration:0x123fe1F1a93754C6aC2B1bdF930a47A39762FAFF"
+  ],
+  "pending": [],
+  "returns": {},
+  "timestamp": 1761071939589,
+  "chain": 421614,
+  "commit": "c72a35d"
+}
