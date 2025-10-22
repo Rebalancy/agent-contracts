@@ -13,7 +13,7 @@ RPC_URL_LOCAL := "http://localhost:8555"
 # deployments
 deploy_aave_vault JSON_RPC_URL SENDER:
     echo "Deploying Aave Vault"
-    forge script script/001_deploy_aave_vault.s.sol:DeployAaveVaultScript --rpc-url $JSON_RPC_URL --sender $SENDER --broadcast --verify --ffi -vvvv
+    forge script script/001_deploy_aave_vault.s.sol:DeployAaveVaultScript --rpc-url $JSON_RPC_URL --sender $SENDER --broadcast --ffi -vvvv
     
 deploy_mock_usdc JSON_RPC_URL SENDER:
     echo "Deploying MockUSDC"
