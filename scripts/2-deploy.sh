@@ -70,6 +70,7 @@ just deploy_arbitrum_sepolia # @dev this includes initial deposit
 
 # 6) Seed Agent Address
 just seed_agent_address_in_arbitrum_sepolia
+just seed_agent_address_in_optimism_sepolia
 
 # 6) Deploy the agent contract to the new account
 near deploy $ACCOUNT_ID "contract/target/near/shade_agent_contract.wasm" \

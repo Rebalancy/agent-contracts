@@ -5,6 +5,7 @@ set export
 # rpc urls
 RPC_URL_BASE_SEPOLIA := "https://base-sepolia.g.alchemy.com/v2/$ALCHEMY_API_KEY"
 RPC_URL_ARBITRUM_SEPOLIA := "https://arb-sepolia.g.alchemy.com/v2/$ALCHEMY_API_KEY"
+RPC_URL_OPTIMISM_SEPOLIA := "https://opt-sepolia.g.alchemy.com/v2/$ALCHEMY_API_KEY"
 RPC_URL_ETHEREUM_SEPOLIA := "https://sepolia.infura.io/v3/$ALCHEMY_API_KEY"
 RPC_URL_ETHEREUM_MAINNET := "https://eth-mainnet.g.alchemy.com/v2/$ALCHEMY_API_KEY"
 RPC_URL_LOCAL := "http://localhost:8555"
@@ -12,8 +13,8 @@ RPC_URL_LOCAL := "http://localhost:8555"
 # deployments
 deploy_aave_vault JSON_RPC_URL SENDER:
     echo "Deploying Aave Vault"
-    forge script script/001_deploy_aave_vault.s.sol:DeployAaveVaultScript --rpc-url $JSON_RPC_URL --sender $SENDER --broadcast --verify --etherscan-api-key $ETHERSCAN_API_KEY --ffi -vvvv
-
+    forge script script/001_deploy_aave_vault.s.sol:DeployAaveVaultScript --rpc-url $JSON_RPC_URL --sender $SENDER --broadcast --verify --ffi -vvvv
+    
 deploy_mock_usdc JSON_RPC_URL SENDER:
     echo "Deploying MockUSDC"
     forge script script/000_deploy_mock_usdc.s.sol:DeployMockUSDCScript --rpc-url $JSON_RPC_URL --sender $SENDER --broadcast --ffi -vvvv
@@ -37,6 +38,10 @@ deploy_arbitrum_sepolia:
     MNEMONIC=$MNEMONIC_TESTNET just deposit {{RPC_URL_ARBITRUM_SEPOLIA}} $SENDER_TESTNET
 
 # actions
+seed_agent_address_in_optimism_sepolia:
+    echo "Transferring ETH to the Agent Address"
+    MNEMONIC=$MNEMONIC_TESTNET forge script script/004_transfer_eth.s.sol:TransferETHScript --rpc-url {{RPC_URL_OPTIMISM_SEPOLIA}} --sender $SENDER_TESTNET --broadcast --ffi -vvvv
+
 seed_agent_address_in_arbitrum_sepolia:
     echo "Transferring ETH to the Agent Address"
     MNEMONIC=$MNEMONIC_TESTNET forge script script/004_transfer_eth.s.sol:TransferETHScript --rpc-url {{RPC_URL_ARBITRUM_SEPOLIA}} --sender $SENDER_TESTNET --broadcast --ffi -vvvv
