@@ -253,8 +253,8 @@ impl Contract {
         let mut tx = args.clone().partial_mint_transaction;
         tx.input = tx_builders::build_cctp_mint_tx(args);
         tx.to = Some(
-            Address::from_str(&cfg.cctp.messenger_address)
-                .expect("Invalid messenger")
+            Address::from_str(&cfg.cctp.transmitter_address)
+                .expect("Invalid transmitter")
                 .into_array(),
         );
 
