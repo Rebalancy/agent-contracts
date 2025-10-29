@@ -24,6 +24,7 @@ impl Contract {
             | (Flow::AaveToAave, PayloadType::CCTPBurn) => log.source_chain,
 
             (Flow::AaveToAave, PayloadType::CCTPMint)
+            | (Flow::AaveToAave, PayloadType::AaveApproveBeforeSupply)
             | (Flow::AaveToAave, PayloadType::AaveSupply) => log.destination_chain,
 
             // -------- Rebalancer -> Aave --------
@@ -32,6 +33,7 @@ impl Contract {
             | (Flow::RebalancerToAave, PayloadType::CCTPBurn) => log.source_chain,
 
             (Flow::RebalancerToAave, PayloadType::CCTPMint)
+            | (Flow::RebalancerToAave, PayloadType::AaveApproveBeforeSupply)
             | (Flow::RebalancerToAave, PayloadType::AaveSupply) => log.destination_chain,
 
             // -------- Aave -> Rebalancer --------
@@ -87,6 +89,7 @@ impl Flow {
                 PayloadType::CCTPApproveBeforeBurn,
                 PayloadType::CCTPBurn,
                 PayloadType::CCTPMint,
+                PayloadType::AaveApproveBeforeSupply,
                 PayloadType::AaveSupply,
             ],
             Flow::RebalancerToAave => &[
@@ -94,6 +97,7 @@ impl Flow {
                 PayloadType::CCTPApproveBeforeBurn,
                 PayloadType::CCTPBurn,
                 PayloadType::CCTPMint,
+                PayloadType::AaveApproveBeforeSupply,
                 PayloadType::AaveSupply,
             ],
             Flow::AaveToRebalancer => &[

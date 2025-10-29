@@ -4,9 +4,9 @@ use crate::{
     constants::{KEY_VERSION, PATH},
     external::this_contract,
     types::{
-        AaveArgs, ActiveSession, ActivityLog, AgentActionType, CCTPBeforeBurnArgs, CCTPBurnArgs,
-        CCTPMintArgs, CacheKey, ChainConfig, ChainId, Config, Flow, PayloadType, RebalancerArgs,
-        Step, Worker,
+        AaveApproveBeforeSupplyArgs, AaveArgs, ActiveSession, ActivityLog, AgentActionType,
+        CCTPBeforeBurnArgs, CCTPBurnArgs, CCTPMintArgs, CacheKey, ChainConfig, ChainId, Config,
+        Flow, PayloadType, RebalancerArgs, Step, Worker,
     },
 };
 use alloy_primitives::Address;
@@ -259,6 +259,26 @@ impl Contract {
         );
 
         self.trigger_signature(Step::CCTPMint, tx, callback_gas_tgas)
+    }
+
+    pub fn build_and_sign_aave_approve_before_supply_tx(
+        &mut self,
+        args: AaveApproveBeforeSupplyArgs,
+        callback_gas_tgas: u64,
+    ) -> Promise {
+        self.assert_agent_is_calling();
+        let cfg =
+            self.get_chain_config_from_step_and_current_session(Step::AaveApproveBeforeSupply);
+
+        let mut tx = args.clone().partial_transaction;
+        tx.input = tx_builders::build_aave_approve_before_supply_tx(args);
+        tx.to = Some(
+            Address::from_str(&cfg.cctp.usdc_address)
+                .expect("Invalid USDC address")
+                .into_array(),
+        );
+
+        self.trigger_signature(Step::AaveApproveBeforeSupply, tx, callback_gas_tgas)
     }
 
     pub fn build_and_sign_aave_supply_tx(

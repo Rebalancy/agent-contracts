@@ -25,6 +25,8 @@ pub struct CCTPBeforeBurnArgs {
     pub partial_transaction: EVMTransaction,
 }
 
+pub type AaveApproveBeforeSupplyArgs = CCTPBeforeBurnArgs;
+
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct CCTPBurnArgs {

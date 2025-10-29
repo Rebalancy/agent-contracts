@@ -23,13 +23,14 @@ use schemars::JsonSchema;
 pub enum PayloadType {
     AaveSupply = 0,
     AaveWithdraw = 1,
-    CCTPApproveBeforeBurn = 2,
-    CCTPBurn = 3,
-    CCTPMint = 4,
-    RebalancerWithdrawToAllocate = 5,
-    RebalancerUpdateCrossChainBalance = 6,
-    RebalancerDeposit = 7,
-    RebalancerSignCrossChainBalance = 8,
+    AaveApproveBeforeSupply = 2,
+    CCTPApproveBeforeBurn = 3,
+    CCTPBurn = 4,
+    CCTPMint = 5,
+    RebalancerWithdrawToAllocate = 6,
+    RebalancerUpdateCrossChainBalance = 7,
+    RebalancerDeposit = 8,
+    RebalancerSignCrossChainBalance = 9,
 }
 
 impl From<u8> for PayloadType {
@@ -37,13 +38,14 @@ impl From<u8> for PayloadType {
         match value {
             0 => PayloadType::AaveSupply,
             1 => PayloadType::AaveWithdraw,
-            2 => PayloadType::CCTPApproveBeforeBurn,
-            3 => PayloadType::CCTPBurn,
-            4 => PayloadType::CCTPMint,
-            5 => PayloadType::RebalancerWithdrawToAllocate,
-            6 => PayloadType::RebalancerUpdateCrossChainBalance,
-            7 => PayloadType::RebalancerDeposit,
-            8 => PayloadType::RebalancerSignCrossChainBalance,
+            2 => PayloadType::AaveApproveBeforeSupply,
+            3 => PayloadType::CCTPApproveBeforeBurn,
+            4 => PayloadType::CCTPBurn,
+            5 => PayloadType::CCTPMint,
+            6 => PayloadType::RebalancerWithdrawToAllocate,
+            7 => PayloadType::RebalancerUpdateCrossChainBalance,
+            8 => PayloadType::RebalancerDeposit,
+            9 => PayloadType::RebalancerSignCrossChainBalance,
             _ => panic!("Unknown PayloadType: {}", value),
         }
     }
