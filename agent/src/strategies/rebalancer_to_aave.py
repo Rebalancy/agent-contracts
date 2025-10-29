@@ -85,9 +85,20 @@ class RebalancerToAave(Strategy):
         time.sleep(3)
 
         # Step 5: Deposit into Aave on destination chain
-        # deposit_payload = await self.rebalancer_contract.build_and_sign_aave_deposit_tx(to_chain_id=to_chain_id, amount=amount)
-        # print("Broadcasting deposit transaction...")
-        # print(f"Deposit payload: {deposit_payload}")
+        asset = self.remote_config[to_chain_id]["aave"]["asset"]
+        on_behalf_of = self.remote_config[to_chain_id]["aave"]["on_behalf_of"]
+        referral_code = self.remote_config[to_chain_id]["aave"]["referral_code"]
+        aave_lending_pool = self.remote_config[to_chain_id]["aave"]["lending_pool_address"]
+        aave_supply_payload = await self.rebalancer_contract.build_and_sign_aave_supply_tx(to_chain_id=to_chain_id, asset=asset, amount=amount, on_behalf_of=on_behalf_of, referral_code=referral_code, to=aave_lending_pool)
+       
+        try:
+            broadcast(web3_instance_destination_chain, aave_supply_payload)
+        except Exception as e:
+            print(f"Error broadcasting mint transaction: {e}")
+            return
+        
+        print("Broadcasting supply transaction...")
+        print(f"Deposit payload: {aave_supply_payload}")
         print("✅ Done Rebalancer→Aave\n")
 
 # TODO: Notas
