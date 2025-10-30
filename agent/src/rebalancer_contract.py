@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import ast
 
@@ -8,7 +9,7 @@ from near_omni_client.wallets.near_wallet import NearWallet
 from near_omni_client.transactions import TransactionBuilder, ActionFactory
 from near_omni_client.transactions.utils import decode_key
 from near_omni_client.providers.interfaces import IProviderFactory
-
+from near_omni_client.json_rpc.exceptions import JsonRpcError
 from evm_transaction import create_partial_tx
 from tx_types import Flow
 from config import Config
@@ -148,9 +149,8 @@ class RebalancerContract:
         
         return payload_bytes
 
-    async def build_and_sign_cctp_approve_before_burn_tx(self, source_chain: int, to_chain_id: int, amount: int, spender: str,to: str):
+    async def build_and_sign_cctp_approve_before_burn_tx(self, source_chain: int, amount: int, spender: str,to: str):
         source_chain_as_network = from_chain_id_to_network(source_chain)
-        destination_domain = int(from_chain_id_to_network(to_chain_id).domain)
         input_payload = await self.build_cctp_approve_before_burn_tx(amount=amount, spender=spender)
         gas_limit = self.gas_estimator.estimate_gas_limit(source_chain_as_network, self.agent_address, to, input_payload)
         print(f"Estimated gas limit: {gas_limit}")
@@ -352,7 +352,62 @@ class RebalancerContract:
                 
         return signed_rlp
 
-    async def _sign_and_submit_transaction(self, *, method: str, args: Dict[str, Any], gas: int, deposit: int):
+    async def build_aave_approve_before_supply_tx(self, amount: int, spender: str):
+        print(f"Building aave_approve_before_supply tx")
+        args = {
+            "amount": amount,
+            "spender": spender,
+        }
+        print("ARGS build_aave_approve_before_supply_tx:", args)
+        print("ARGS TYPES:", {k: type(v) for k, v in args.items()})
+
+        response = await self.near_client.call_contract(
+            contract_id=self.near_contract_id,
+            method="build_aave_approve_before_supply_tx",
+            args=args
+        )
+        print("Created aave_approve_before_supply payload")
+        raw = response.result
+        print("raw response", raw)
+        as_str = bytes(raw).decode("utf-8")
+        int_list = ast.literal_eval(as_str)
+        payload_bytes = bytes(int_list)
+        
+        return payload_bytes
+
+    async def build_and_sign_aave_approve_before_supply_tx(self, to_chain_id: int, amount: int, spender: str,to: str):
+        chain_as_network = from_chain_id_to_network(to_chain_id)
+        input_payload = await self.build_aave_approve_before_supply_tx(amount=amount, spender=spender)
+        gas_limit = self.gas_estimator.estimate_gas_limit(chain_as_network, self.agent_address, to, input_payload)
+        print(f"Estimated gas limit: {gas_limit}")
+        
+        args = {
+            "args": {
+                "amount": amount,
+                "spender": spender,
+                "partial_transaction": create_partial_tx(chain_as_network, self.agent_address, self.evm_provider, self.gas_estimator, gas_limit).to_dict()
+            },
+            "callback_gas_tgas": self.config.callback_gas_tgas
+        }
+        
+        result = await self._sign_and_submit_transaction(
+            method="build_and_sign_aave_approve_before_supply_tx",
+            args=args,
+            gas=self.config.tx_tgas * TGAS,
+            deposit=0
+        )
+        print("result", result)
+
+        success_value_b64 = result.status.get("SuccessValue")
+        if not success_value_b64:
+            raise Exception("aave_approve_before_supply didn't return SuccessValue")
+
+        print("success_value_b64", success_value_b64)
+        signed_rlp = extract_signed_rlp(success_value_b64)
+                
+        return signed_rlp
+    
+    async def _sign_and_submit_transaction(self, *, method: str, args: Dict[str, Any], gas: int, deposit: int, max_retries: int = 3, delay: float = 2.0):
         public_key_str = await self.near_wallet.get_public_key()
         signer_account_id = self.near_wallet.get_address()
         private_key_str = self.near_wallet.keypair.to_string()
@@ -381,7 +436,32 @@ class RebalancerContract:
         signed_tx_bytes = bytes(bytearray(signed_tx))
         signed_tx_base64 = base64.b64encode(signed_tx_bytes).decode("utf-8")
         
-        print("Sending transaction to NEAR network...")
-        result = await self.near_client.send_raw_transaction(signed_tx_base64)
-        return result
-    
+        # --- Retry section starts here ---
+        for attempt in range(1, max_retries + 1):
+            try:
+                print(f"Sending transaction to NEAR network... (attempt {attempt})")
+                result = await self.near_client.send_raw_transaction(signed_tx_base64)
+                print("✅ Transaction successfully sent.")
+                return result
+            except JsonRpcError as e:
+                if "TIMEOUT_ERROR" in str(e):
+                    if attempt < max_retries:
+                        print(f"⚠️  Timeout error on attempt {attempt}. Retrying in {delay:.1f}s...")
+                        await asyncio.sleep(delay)
+                        delay *= 2  # exponential backoff
+                        continue
+                    else:
+                        print("❌ Transaction failed after maximum retries due to TIMEOUT_ERROR.")
+                raise
+            except Exception as e:
+                # Catch unexpected errors (network, aiohttp, etc.)
+                if attempt < max_retries:
+                    print(f"⚠️  Unexpected error on attempt {attempt}: {e}. Retrying in {delay:.1f}s...")
+                    await asyncio.sleep(delay)
+                    delay *= 2
+                    continue
+                else:
+                    print("❌ Transaction failed after maximum retries due to unexpected error.")
+                    raise
+        # --- Retry section ends here ---
+        

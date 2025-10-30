@@ -43,7 +43,7 @@ class RebalancerToAave(Strategy):
         burn_token = self.remote_config[from_chain_id]["aave"]["asset"]
         spender = self.remote_config[from_chain_id]["cctp"]["messenger_address"] # the messenger contract is the spender
         messenger_contract_address = spender
-        approve_payload = await self.rebalancer_contract.build_and_sign_cctp_approve_before_burn_tx(source_chain=from_chain_id, to_chain_id=to_chain_id,amount=amount, spender=spender, to=burn_token)
+        approve_payload = await self.rebalancer_contract.build_and_sign_cctp_approve_before_burn_tx(source_chain=from_chain_id, amount=amount, spender=spender, to=burn_token)
         try:
             broadcast(web3_instance, approve_payload)
         except Exception as e:
@@ -84,7 +84,22 @@ class RebalancerToAave(Strategy):
         print("Mint transaction broadcasted successfully!")
         time.sleep(3)
 
-        # Step 5: Deposit into Aave on destination chain
+        # Step 5: Approve USDC before supply on destination chain
+        usdc_on_destination_chain = self.remote_config[to_chain_id]["aave"]["asset"]
+        spender = self.remote_config[to_chain_id]["aave"]["lending_pool_address"] # the lending pool is the spender
+        lending_pool_address = spender
+        approve_usdc_aave_payload = await self.rebalancer_contract.build_and_sign_aave_approve_before_supply_tx(to_chain_id=to_chain_id,amount=amount, spender=lending_pool_address, to=usdc_on_destination_chain)
+        try:
+            broadcast(web3_instance_destination_chain, approve_usdc_aave_payload)
+        except Exception as e:
+            print(f"Error broadcasting approve transaction: {e}")
+            return
+        
+        print("USDC approved for Aave supply.")
+
+        time.sleep(3)
+
+        # Step 6: Deposit into Aave on destination chain
         asset = self.remote_config[to_chain_id]["aave"]["asset"]
         on_behalf_of = self.remote_config[to_chain_id]["aave"]["on_behalf_of"]
         referral_code = self.remote_config[to_chain_id]["aave"]["referral_code"]
@@ -100,7 +115,3 @@ class RebalancerToAave(Strategy):
         print("Broadcasting supply transaction...")
         print(f"Deposit payload: {aave_supply_payload}")
         print("✅ Done Rebalancer→Aave\n")
-
-# TODO: Notas
-# debuggear la transaccion
-# estar seguro que pasa esto....
