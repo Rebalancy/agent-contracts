@@ -113,5 +113,4 @@ class RebalancerToAave(Strategy):
             return
         
         print("Broadcasting supply transaction...")
-        print(f"Deposit payload: {aave_supply_payload}")
         print("✅ Done Rebalancer→Aave\n")
