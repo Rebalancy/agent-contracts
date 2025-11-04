@@ -23,3 +23,7 @@ deployer.json
 deployer*
 
 __pycache__/
+
+# Solidity deployment broadcasts
+contract-evm/broadcast/**/run-*.json
+!contract-evm/broadcast/**/run-latest.json
