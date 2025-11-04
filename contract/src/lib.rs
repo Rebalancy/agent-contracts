@@ -6,7 +6,7 @@ use crate::{
     types::{
         AaveApproveBeforeSupplyArgs, AaveArgs, ActiveSession, ActivityLog, AgentActionType,
         CCTPBeforeBurnArgs, CCTPBurnArgs, CCTPMintArgs, CacheKey, ChainConfig, ChainId, Config,
-        Flow, PayloadType, RebalancerArgs, Step, Worker,
+        Flow, PayloadType, RebalancerArgs, SnapshotDigestArgs, Step, Worker,
     },
 };
 use alloy_primitives::Address;
@@ -135,6 +135,39 @@ impl Contract {
                     .insert(cache_key, payload.clone());
 
                 payload
+            }
+            Err(e) => {
+                env::log_str(&format!("Callback failed: {:?}", e));
+                vec![]
+            }
+        }
+    }
+
+    #[private]
+    pub fn sign_crosschain_balance_callback(
+        &mut self,
+        #[callback_result] call_result: Result<SignatureResponse, PromiseError>,
+    ) -> Vec<u8> {
+        match call_result {
+            Ok(signature_response) => {
+                // decode signature and build it into [u8;65]
+                let affine_point_bytes =
+                    hex::decode(signature_response.big_r.affine_point.clone()).expect("bad affine");
+                require!(affine_point_bytes.len() >= 33, "affine too short");
+
+                let r_bytes = affine_point_bytes[1..33].to_vec();
+                let s_bytes = hex::decode(signature_response.s.scalar.clone()).expect("bad s");
+                require!(s_bytes.len() == 32, "s len != 32");
+                let v = signature_response.recovery_id as u8;
+
+                let mut signature_bytes = Vec::with_capacity(65);
+                signature_bytes.extend_from_slice(&r_bytes);
+                signature_bytes.extend_from_slice(&s_bytes);
+                signature_bytes.push(v);
+
+                env::log_str(&format!("✅ MPC signature ready: v={}, r,s ok", v));
+
+                signature_bytes
             }
             Err(e) => {
                 env::log_str(&format!("Callback failed: {:?}", e));
@@ -338,6 +371,32 @@ impl Contract {
         );
 
         self.trigger_signature(Step::RebalancerDeposit, tx, callback_gas_tgas)
+    }
+
+    pub fn build_and_sign_crosschain_balance_snapshot(
+        &self,
+        args: SnapshotDigestArgs,
+        callback_gas_tgas: u64,
+    ) -> Promise {
+        self.assert_agent_is_calling();
+
+        let digest = encoders::rebalancer::vault::compute_snapshot_digest(
+            args.chain_id,
+            args.verifying_contract.clone(),
+            args.balance,
+            args.nonce,
+            args.deadline,
+            args.assets,
+            args.receiver,
+        );
+
+        let payload_hash = digest.try_into().expect("Payload must be 32 bytes long");
+
+        ecdsa::get_sig(payload_hash, PATH.to_string(), KEY_VERSION).then(
+            this_contract::ext(env::current_account_id())
+                .with_static_gas(Gas::from_tgas(callback_gas_tgas))
+                .sign_crosschain_balance_callback(),
+        )
     }
 
     pub(crate) fn trigger_signature(

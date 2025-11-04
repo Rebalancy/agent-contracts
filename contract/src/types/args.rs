@@ -47,3 +47,15 @@ pub struct RebalancerArgs {
     pub partial_transaction: EVMTransaction,
     pub cross_chain_a_token_balance: Option<u128>,
 }
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct SnapshotDigestArgs {
+    pub balance: u128,
+    pub chain_id: u64,
+    pub verifying_contract: String,
+    pub nonce: u64,
+    pub deadline: u64,
+    pub assets: String,
+    pub receiver: String,
+}
