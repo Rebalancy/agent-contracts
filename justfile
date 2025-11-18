@@ -61,3 +61,7 @@ seed_agent_address_in_arbitrum_sepolia:
 seed_agent_address_in_optimism_sepolia:
     echo "Seeding agent address with ETH..."
     cd contract-evm && just seed_agent_address_in_optimism_sepolia
+
+send_usdc_to_agent_address_in_arbitrum_sepolia:
+    echo "Sending USDC to agent address..."
+    cd contract-evm && just send_usdc_to_agent_address_in_arbitrum_sepolia

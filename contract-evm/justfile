@@ -38,6 +38,10 @@ deploy_arbitrum_sepolia:
     MNEMONIC=$MNEMONIC_TESTNET just deposit {{RPC_URL_ARBITRUM_SEPOLIA}} $SENDER_TESTNET
 
 # actions
+send_usdc_to_agent_address_in_arbitrum_sepolia:
+    echo "Transferring USDC to the Agent Address"
+    MNEMONIC=$MNEMONIC_TESTNET forge script script/005_transfer_usdc.s.sol:TransferUSDCScript --rpc-url {{RPC_URL_ARBITRUM_SEPOLIA}} --sender $SENDER_TESTNET --broadcast --ffi -vvvv
+
 seed_agent_address_in_optimism_sepolia:
     echo "Transferring ETH to the Agent Address"
     MNEMONIC=$MNEMONIC_TESTNET forge script script/004_transfer_eth.s.sol:TransferETHScript --rpc-url {{RPC_URL_OPTIMISM_SEPOLIA}} --sender $SENDER_TESTNET --broadcast --ffi -vvvv

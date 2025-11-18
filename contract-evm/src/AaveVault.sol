@@ -34,7 +34,7 @@ contract AaveVault is ERC4626, EIP712 {
     using Math for uint256;
 
     /// @dev Address of the AI agent that will manage the investments.
-    address public AI_AGENT; // TODO: This has to be immutable
+    address public immutable AI_AGENT;
 
     /// @dev Maximum total deposits allowed in the vault.
     uint256 public immutable MAX_TOTAL_DEPOSITS = 100_000_000 * 1e6; // 100M
