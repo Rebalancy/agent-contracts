@@ -20,9 +20,7 @@ from rebalancer_contract import RebalancerContract
 from strategy_manager import StrategyManager
 from gas_estimator import GasEstimator
 from config import Config
-from state_assertions import Assert
-
-PATH = "ethereum-1"
+from helpers import Assert, BalanceHelper
 
 async def main():
     # Load configuration from environment variables
@@ -34,7 +32,7 @@ async def main():
 
     agent_public_key = Kdf.derive_public_key(
         root_public_key_str=Kdf.get_root_public_key(config.network_short_name),
-        epsilon=Kdf.derive_epsilon(account_id=config.contract_id, path=PATH)
+        epsilon=Kdf.derive_epsilon(account_id=config.contract_id, path=config.kdf_path)
     )
     agent_evm_address = get_evm_address(agent_public_key)
     print(f"Agent Address: {agent_evm_address}")
@@ -67,7 +65,7 @@ async def main():
         raise ValueError(f"Vault address for source chain {source_chain_id} not found in configs.")
 
     mpc_wallet = MPCWallet(
-        path=PATH,
+        path=config.kdf_path,
         account_id=config.contract_id, # The account ID of the contract on NEAR
         near_network=config.near_network,
         provider_factory=alchemy_factory_provider,
@@ -95,6 +93,9 @@ async def main():
     if not rebalance_operations:
         print("No rebalance operations needed.")
         return
+
+    # Configure Balance Helper
+    BalanceHelper.configure(rebalancer_vault_address=vault_address, agent_address=agent_evm_address)
 
     # Configure Assert
     Assert.configure(rebalancer_vault_address=vault_address, agent_address=agent_evm_address)

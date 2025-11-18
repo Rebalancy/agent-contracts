@@ -5,7 +5,7 @@ from near_omni_client.providers.evm import AlchemyFactoryProvider
 from near_omni_client.adapters.cctp.attestation_service import AttestationService
 
 from .strategy import Strategy
-from .broadcaster import broadcast
+from helpers import broadcast
 from config import Config
 from rebalancer_contract import RebalancerContract
 from tx_types import Flow

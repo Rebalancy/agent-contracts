@@ -5,13 +5,11 @@ from near_omni_client.providers.evm.alchemy_provider import AlchemyFactoryProvid
 from near_omni_client.adapters.cctp.attestation_service import AttestationService
 
 from .strategy import Strategy
-from .broadcaster import broadcast
+from helpers import broadcast, Assert, LendingPool, BalanceHelper
 from config import Config
 from rebalancer_contract import RebalancerContract
 from tx_types import Flow
 from utils import from_chain_id_to_network
-from state_assertions import Assert
-from lending_pool import LendingPool
 
 class RebalancerToAave(Strategy):
     def __init__(self, *, rebalancer_contract: RebalancerContract, evm_factory_provider: AlchemyFactoryProvider, vault_address: str, config: Config, remote_config: Dict[str, dict], agent_address: str) -> None:
@@ -46,6 +44,8 @@ class RebalancerToAave(Strategy):
         )
         print(f"Started rebalance with nonce: {nonce}")
 
+        usdc_agent_balance_before = BalanceHelper.get_usdc_agent_balance(web3_instance_source_chain, usdc_token_address)
+
         # Step 2: Withdraw from Rebalancer on source chain
         withdraw_payload = await self.rebalancer_contract.build_and_sign_withdraw_for_crosschain_allocation_tx(
             source_chain=from_chain_id, 
@@ -60,7 +60,7 @@ class RebalancerToAave(Strategy):
             return
         
         # Step 2: Assert balance is correct after withdraw
-        Assert.usdc_agent_balance(web3_instance_source_chain, usdc_token_address, expected_balance=amount)
+        Assert.usdc_agent_balance(web3_instance_source_chain, usdc_token_address, expected_balance=amount + usdc_agent_balance_before)
 
         # Step 3: Approve USDC for burn on source chain
         approve_payload = await self.rebalancer_contract.build_and_sign_cctp_approve_before_burn_tx(
@@ -76,6 +76,7 @@ class RebalancerToAave(Strategy):
                 
         # Step 4: Burn on source chain to initiate CCTP transfer
         print(f"Using burn token: {burn_token} on chainId={from_chain_id}")
+        cttp_fee = CTTPHelper.get_cctp_fee(web3_instance_source_chain, from_chain_id) # TODO
         burn_payload = await self.rebalancer_contract.build_and_sign_cctp_burn_tx(
             source_chain=from_chain_id, 
             to_chain_id=to_chain_id, 
@@ -89,8 +90,8 @@ class RebalancerToAave(Strategy):
             print(f"Error broadcasting burn transaction: {e}")
             return
 
-        # Step 4: Assert balance is 0 after burn
-        Assert.usdc_agent_balance(web3_instance_source_chain, usdc_token_address, expected_balance=0)
+        # Step 4: Assert balance is balance before - fees
+        Assert.usdc_agent_balance(web3_instance_source_chain, usdc_token_address, expected_balance=usdc_agent_balance_before - cttp_fee)
 
         # Step 5: Wait for attestation
         print(f"Burn transaction hash: 0x{burn_tx_hash}")
@@ -120,8 +121,11 @@ class RebalancerToAave(Strategy):
 
         print("Mint transaction broadcasted successfully!")
 
+        time.sleep(5)
+
         # Step 6: Assert balance is correct after mint
         usdc_on_destination_chain = self.remote_config[to_chain_id]["aave"]["asset"]
+        print(f"USDC on destination chain: {usdc_on_destination_chain}")
         Assert.usdc_agent_balance(web3_instance_destination_chain, usdc_on_destination_chain, expected_balance=amount)
 
         # Step 7: Approve USDC before supply on destination chain
@@ -147,15 +151,17 @@ class RebalancerToAave(Strategy):
         aave_lending_pool_address = self.remote_config[to_chain_id]["aave"]["lending_pool_address"]
         aave_supply_payload = await self.rebalancer_contract.build_and_sign_aave_supply_tx(to_chain_id=to_chain_id, asset=asset, amount=amount, on_behalf_of=on_behalf_of, referral_code=referral_code, to=aave_lending_pool_address)
 
+        a_token_address = LendingPool.get_atoken_address(web3_instance_destination_chain, aave_lending_pool_address, asset)
+        a_token_balance_before = BalanceHelper.get_atoken_agent_balance(web3_instance_destination_chain, a_token_address)
+        
         try:
             broadcast(web3_instance_destination_chain, aave_supply_payload)
         except Exception as e:
             print(f"Error broadcasting supply transaction: {e}")
             return
         
-        # Step 8: Assert aToken balance is correct after supply
-        a_token_address = LendingPool.get_atoken_address(web3_instance_destination_chain, aave_lending_pool_address, asset)
-        Assert.atoken_agent_balance(web3_instance_destination_chain, a_token_address, expected_balance=amount)
+        # Step 8: Assert aToken balance is correct after supply and also considers previous balance
+        Assert.atoken_agent_balance(web3_instance_destination_chain, a_token_address, expected_balance=amount + a_token_balance_before)
         
         print("Broadcasting supply transaction...")
         print("✅ Done Rebalancer→Aave\n")
