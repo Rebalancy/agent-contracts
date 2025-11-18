@@ -8,11 +8,11 @@ class StrategyManager:
     _strategies: Dict[Flow, Strategy] | None = None
 
     @classmethod
-    def configure(cls, *, rebalancer_contract: RebalancerContract, evm_factory_provider, vault_address: str, config: Config, remote_config: Dict[str, dict]) -> None:
+    def configure(cls, *, rebalancer_contract: RebalancerContract, evm_factory_provider, vault_address: str, config: Config, remote_config: Dict[str, dict], agent_address: str) -> None:
         cls._strategies = {
-            Flow.RebalancerToAave: RebalancerToAave(rebalancer_contract=rebalancer_contract, evm_factory_provider=evm_factory_provider, vault_address=vault_address, config=config, remote_config=remote_config),
-            Flow.AaveToRebalancer: AaveToRebalancer(rebalancer_contract=rebalancer_contract, evm_factory_provider=evm_factory_provider, vault_address=vault_address, config=config, remote_config=remote_config),
-            Flow.AaveToAave:       AaveToAave(rebalancer_contract=rebalancer_contract, evm_factory_provider=evm_factory_provider, vault_address=vault_address, config=config, remote_config=remote_config),
+            Flow.RebalancerToAave: RebalancerToAave(rebalancer_contract=rebalancer_contract, evm_factory_provider=evm_factory_provider, vault_address=vault_address, config=config, remote_config=remote_config, agent_address=agent_address),
+            Flow.AaveToRebalancer: AaveToRebalancer(rebalancer_contract=rebalancer_contract, evm_factory_provider=evm_factory_provider, vault_address=vault_address, config=config, remote_config=remote_config, agent_address=agent_address),
+            Flow.AaveToAave:       AaveToAave(rebalancer_contract=rebalancer_contract, evm_factory_provider=evm_factory_provider, vault_address=vault_address, config=config, remote_config=remote_config, agent_address=agent_address),
         }
 
     @classmethod

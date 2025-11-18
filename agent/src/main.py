@@ -20,6 +20,7 @@ from rebalancer_contract import RebalancerContract
 from strategy_manager import StrategyManager
 from gas_estimator import GasEstimator
 from config import Config
+from state_assertions import Assert
 
 PATH = "ethereum-1"
 
@@ -95,8 +96,11 @@ async def main():
         print("No rebalance operations needed.")
         return
 
+    # Configure Assert
+    Assert.configure(rebalancer_vault_address=vault_address, agent_address=agent_evm_address)
+
     # Configure Strategies
-    StrategyManager.configure(rebalancer_contract=rebalancer_contract, evm_factory_provider = alchemy_factory_provider, vault_address=vault_address, config=config, remote_config=configs)
+    StrategyManager.configure(rebalancer_contract=rebalancer_contract, evm_factory_provider = alchemy_factory_provider, vault_address=vault_address, config=config, remote_config=configs, agent_address=agent_evm_address)
 
     # Execute Rebalance Operations 
     await execute_all_rebalance_operations(
