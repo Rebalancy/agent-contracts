@@ -1,3 +1,4 @@
+from eth_typing import ChecksumAddress
 from web3 import Web3
 
 USDC_ABI = [
@@ -14,13 +15,13 @@ ATOKEN_ABI = USDC_ABI
 
 
 class Assert:
-    rebalancer_vault_address: str | None = None
-    agent_address: str | None = None
+    rebalancer_vault_address: ChecksumAddress | None = None
+    agent_address: ChecksumAddress | None = None
 
     @classmethod
     def configure(cls, *, rebalancer_vault_address: str, agent_address: str):
-        cls.rebalancer_vault_address = rebalancer_vault_address
-        cls.agent_address = agent_address
+        cls.rebalancer_vault_address = Web3.to_checksum_address(rebalancer_vault_address)
+        cls.agent_address = Web3.to_checksum_address(agent_address)
 
     @classmethod
     def _ensure_config(cls):
@@ -36,7 +37,7 @@ class Assert:
         cls._ensure_config()
 
         vault_balance = (
-            web3_instance.eth.contract(address=usdc_address, abi=USDC_ABI)
+            web3_instance.eth.contract(address=Web3.to_checksum_address(usdc_address), abi=USDC_ABI)
             .functions.balanceOf(cls.rebalancer_vault_address)
             .call()
         )
@@ -51,7 +52,7 @@ class Assert:
         cls._ensure_config()
 
         vault_balance = (
-            web3_instance.eth.contract(address=atoken_address, abi=ATOKEN_ABI)
+            web3_instance.eth.contract(address=Web3.to_checksum_address(atoken_address), abi=ATOKEN_ABI)
             .functions.balanceOf(cls.rebalancer_vault_address)
             .call()
         )
@@ -70,7 +71,7 @@ class Assert:
         cls._ensure_config()
 
         agent_balance = (
-            web3_instance.eth.contract(address=usdc_address, abi=USDC_ABI)
+            web3_instance.eth.contract(address=Web3.to_checksum_address(usdc_address), abi=USDC_ABI)
             .functions.balanceOf(cls.agent_address)
             .call()
         )
@@ -85,7 +86,7 @@ class Assert:
         cls._ensure_config()
 
         agent_balance = (
-            web3_instance.eth.contract(address=atoken_address, abi=ATOKEN_ABI)
+            web3_instance.eth.contract(address=Web3.to_checksum_address(atoken_address), abi=ATOKEN_ABI)
             .functions.balanceOf(cls.agent_address)
             .call()
         )
