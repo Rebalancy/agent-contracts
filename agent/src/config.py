@@ -2,6 +2,7 @@ import os
 import sys
 import json
 
+
 from near_omni_client.networks import Network
 
 
@@ -28,6 +29,7 @@ class Config:
         one_time_signer_private_key: str,
         one_time_signer_account_id: str,
         override_interest_rates: dict[int, float],
+        kdf_path: str,
     ):
         self.contract_id = contract_id
         self.near_network = near_network
@@ -40,6 +42,7 @@ class Config:
         self.override_interest_rates = override_interest_rates
         self.callback_gas_tgas = callback_gas_tgas
         self.tx_tgas = tx_tgas
+        self.kdf_path = kdf_path
 
         self._validate()
 
@@ -60,6 +63,7 @@ class Config:
         one_time_signer_account_id = os.getenv("ONE_TIME_SIGNER_ACCOUNT_ID", "your_account_id_here")
         callback_gas_tgas = int(os.getenv("CALLBACK_GAS_TGAS", "10"))  # Default to 10 TGas
         tx_tgas = int(os.getenv("TX_TGAS", "300"))  # Default to 300 TGas
+        kdf_path = os.getenv("KDF_PATH", "ethereum-1")
 
         # Parse OVERRIDE_INTEREST_RATES as JSON dict
         override_rates = os.getenv("OVERRIDE_INTEREST_RATES", "{}")
@@ -81,6 +85,7 @@ class Config:
             override_interest_rates=override_interest_rates,
             callback_gas_tgas=callback_gas_tgas,
             tx_tgas=tx_tgas,
+            kdf_path=kdf_path,
         )
 
     def _validate(self):
@@ -109,4 +114,5 @@ class Config:
         print(f"Override Interest Rates: {self.override_interest_rates}")
         print(f"Callback Gas (TGas): {self.callback_gas_tgas}")
         print(f"Transaction Gas (TGas): {self.tx_tgas}")
+        print(f"KDF Path: {self.kdf_path}")
         print("-----------------------------------------------------")
