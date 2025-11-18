@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # 1) Create a new NEAR account with an incremented index
 
 # base name for the accounts
-BASE_NAME="rebalancer-abcdefghi"
+BASE_NAME="rebalancer-abcdefghij"
 NETWORK="testnet"
 PATH_STR="ethereum-1"
 DEPLOYMENTS_DIR="deployments"
