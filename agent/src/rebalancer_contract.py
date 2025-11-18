@@ -65,10 +65,9 @@ class RebalancerContract:
         result = await self._sign_and_submit_transaction(
             method="start_rebalance",
             args=args,
-            gas=300_000_000_000_000, # TODO: Make it constant or from ENV Vars
+            gas=self.config.tx_tgas * TGAS,
             deposit=0
         )
-        print("result", result)
 
         success_value_b64 = result.status.get("SuccessValue")
         if not success_value_b64:
@@ -132,8 +131,6 @@ class RebalancerContract:
             "amount": amount,
             "spender": spender,
         }
-        print("ARGS build_cctp_approve_before_burn_tx:", args)
-        print("ARGS TYPES:", {k: type(v) for k, v in args.items()})
 
         response = await self.near_client.call_contract(
             contract_id=self.near_contract_id,
@@ -142,7 +139,6 @@ class RebalancerContract:
         )
         print("Created cctp_approve_before_burn payload")
         raw = response.result
-        print("raw response", raw)
         as_str = bytes(raw).decode("utf-8")
         int_list = ast.literal_eval(as_str)
         payload_bytes = bytes(int_list)
@@ -176,7 +172,6 @@ class RebalancerContract:
         if not success_value_b64:
             raise Exception("withdraw_for_crosschain_allocation didn't return SuccessValue")
 
-        print("success_value_b64", success_value_b64)
         signed_rlp = extract_signed_rlp(success_value_b64)
                 
         return signed_rlp
@@ -192,8 +187,6 @@ class RebalancerContract:
             "max_fee": self.config.max_bridge_fee,
             "min_finality_threshold": self.config.min_bridge_finality_threshold
         }
-        print("ARGS build_cctp_burn_tx:", args)
-        print("ARGS TYPES:", {k: type(v) for k, v in args.items()})
 
         response = await self.near_client.call_contract(
             contract_id=self.near_contract_id,
@@ -202,7 +195,6 @@ class RebalancerContract:
         )
         print("Created cctp_burn payload")
         raw = response.result
-        print("raw response", raw)
         as_str = bytes(raw).decode("utf-8")
         int_list = ast.literal_eval(as_str)
         payload_bytes = bytes(int_list)
@@ -242,7 +234,6 @@ class RebalancerContract:
         if not success_value_b64:
             raise Exception("withdraw_for_crosschain_allocation didn't return SuccessValue")
 
-        print("success_value_b64", success_value_b64)
         signed_rlp = extract_signed_rlp(success_value_b64)
                 
         return signed_rlp
@@ -260,7 +251,6 @@ class RebalancerContract:
             args=args
         )
         print("Created cctp_mint payload")
-        print("raw response", response)
         raw = response.result
         as_str = bytes(raw).decode("utf-8")
         int_list = ast.literal_eval(as_str)
@@ -296,7 +286,6 @@ class RebalancerContract:
         if not success_value_b64:
             raise Exception("build_and_sign_cctp_mint_tx didn't return SuccessValue")
 
-        print("success_value_b64", success_value_b64)
         signed_rlp = extract_signed_rlp(success_value_b64)
                 
         return signed_rlp
@@ -347,7 +336,6 @@ class RebalancerContract:
         if not success_value_b64:
             raise Exception("build_and_sign_aave_deposit_tx didn't return SuccessValue")
 
-        print("success_value_b64", success_value_b64)
         signed_rlp = extract_signed_rlp(success_value_b64)
                 
         return signed_rlp
@@ -358,8 +346,6 @@ class RebalancerContract:
             "amount": amount,
             "spender": spender,
         }
-        print("ARGS build_aave_approve_before_supply_tx:", args)
-        print("ARGS TYPES:", {k: type(v) for k, v in args.items()})
 
         response = await self.near_client.call_contract(
             contract_id=self.near_contract_id,
@@ -368,7 +354,6 @@ class RebalancerContract:
         )
         print("Created aave_approve_before_supply payload")
         raw = response.result
-        print("raw response", raw)
         as_str = bytes(raw).decode("utf-8")
         int_list = ast.literal_eval(as_str)
         payload_bytes = bytes(int_list)
@@ -402,7 +387,6 @@ class RebalancerContract:
         if not success_value_b64:
             raise Exception("aave_approve_before_supply didn't return SuccessValue")
 
-        print("success_value_b64", success_value_b64)
         signed_rlp = extract_signed_rlp(success_value_b64)
                 
         return signed_rlp
