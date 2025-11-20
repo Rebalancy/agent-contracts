@@ -68,7 +68,7 @@ class RebalancerToAave(Strategy):
         cctp_fees_typed = fee_service.get_fees(destination_domain_id=destination_domain)
         cctp_minimum_fee = cctp_fees_typed.minimumFee
         print(f"CCTP minimum fee for destination domain {destination_domain}: {cctp_minimum_fee}")
-        cctp_fees = cctp_minimum_fee * amount // 10_000  # assuming BPS is in basis points (1/100 of a percent)
+        cctp_fees = int((cctp_minimum_fee * amount // 10_000) * 1.2) # assuming BPS is in basis points (1/100 of a percent) + a 20% buffer
         print(f"CCTP fees for amount {amount}: {cctp_fees}")
 
         if cctp_fees > self.config.max_bridge_fee:
@@ -77,7 +77,8 @@ class RebalancerToAave(Strategy):
 
         approve_payload = await self.rebalancer_contract.build_and_sign_cctp_approve_before_burn_tx(
             source_chain=from_chain_id, 
-            amount=amount + cctp_fees, spender=spender, # considering the fees
+            amount=amount + cctp_fees, # considering the fees
+            spender=spender,
             to=burn_token
         )
         try:
