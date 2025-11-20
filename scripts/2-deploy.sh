@@ -76,7 +76,7 @@ just send_usdc_to_agent_address_in_arbitrum_sepolia
 # 6) Deploy the agent contract to the new account
 near deploy $ACCOUNT_ID "contract/target/near/shade_agent_contract.wasm" \
   --initFunction init \
-  --initArgs "$(node scripts/gen-init-args.js 2>/dev/null)"
+  --initArgs "$(node scripts/gen-init-args.js "$EVMTARGET" 2>/dev/null)"
 
 echo "✅ Agent contract deployed to $ACCOUNT_ID"
 

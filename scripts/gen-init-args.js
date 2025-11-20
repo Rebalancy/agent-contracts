@@ -5,6 +5,8 @@ const path = require("path");
 const config = JSON.parse(fs.readFileSync("./config.json", "utf8"));
 const zeroAddress = "0x0000000000000000000000000000000000000000";
 
+const agentAddress = process.argv[2] || zeroAddress;
+
 function getVaultAddress(chainId) {
     console.error(`🔍 Reading vault for chain ${chainId}`);
     try {
@@ -36,7 +38,7 @@ const initArgs = {
             config: {
                 aave: {
                     asset: cctp.usdc || zeroAddress,
-                    on_behalf_of: zeroAddress,
+                    on_behalf_of: agentAddress,
                     referral_code: 0,
                     lending_pool_address: aave.lendingPool || zeroAddress,
                 },
