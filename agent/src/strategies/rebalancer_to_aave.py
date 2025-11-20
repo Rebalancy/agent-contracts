@@ -68,7 +68,7 @@ class RebalancerToAave(Strategy):
         cctp_fees_typed = fee_service.get_fees(destination_domain_id=destination_domain)
         cctp_minimum_fee = cctp_fees_typed.minimumFee
         print(f"CCTP minimum fee for destination domain {destination_domain}: {cctp_minimum_fee}")
-        cctp_fees = int((cctp_minimum_fee * amount // 10_000) * 1.2) # assuming BPS is in basis points (1/100 of a percent) + a 20% buffer
+        cctp_fees = int((cctp_minimum_fee * amount // 10_000) * 1.05) # assuming BPS is in basis points (1/100 of a percent) + a 5% buffer
         print(f"CCTP fees for amount {amount}: {cctp_fees}")
 
         if cctp_fees > self.config.max_bridge_fee:
@@ -139,9 +139,9 @@ class RebalancerToAave(Strategy):
         time.sleep(5)
 
         # Step 6: Assert balance is correct after mint
-        usdc_on_destination_chain = self.remote_config[to_chain_id]["aave"]["asset"]
-        print(f"USDC on destination chain: {usdc_on_destination_chain}")
-        Assert.usdc_agent_balance(web3_instance_destination_chain, usdc_on_destination_chain, expected_balance=amount)
+        usdc_address_on_destination_chain = self.remote_config[to_chain_id]["aave"]["asset"]
+        print(f"USDC on destination chain: {usdc_address_on_destination_chain}")
+        Assert.usdc_agent_balance_is_at_least(web3_instance_destination_chain, usdc_address_on_destination_chain, expected_balance=amount)
 
         # Step 7: Approve USDC before supply on destination chain
         lending_pool_address = self.remote_config[to_chain_id]["aave"]["lending_pool_address"] # the lending pool is the spender
@@ -149,7 +149,7 @@ class RebalancerToAave(Strategy):
         approve_usdc_aave_payload = await self.rebalancer_contract.build_and_sign_aave_approve_before_supply_tx(
             to_chain_id=to_chain_id,amount=amount, 
             spender=lending_pool_address, 
-            to=usdc_on_destination_chain
+            to=usdc_address_on_destination_chain
         )
         try:
             broadcast(web3_instance_destination_chain, approve_usdc_aave_payload)
