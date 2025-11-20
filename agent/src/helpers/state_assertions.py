@@ -82,6 +82,21 @@ class Assert:
         )
 
     @classmethod
+    def usdc_agent_balance_is_at_least(cls, web3_instance: Web3, usdc_address: str, expected_balance):
+        cls._ensure_config()
+
+        agent_balance = (
+            web3_instance.eth.contract(address=Web3.to_checksum_address(usdc_address), abi=USDC_ABI)
+            .functions.balanceOf(cls.agent_address)
+            .call()
+        )
+
+        assert agent_balance >= expected_balance, (
+            f"Agent USDC balance is less than expected! "
+            f"Expected: {expected_balance}, Found: {agent_balance}"
+        )
+
+    @classmethod
     def atoken_agent_balance(cls, web3_instance: Web3, atoken_address: str, expected_balance):
         cls._ensure_config()
 
