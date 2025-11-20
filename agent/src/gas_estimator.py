@@ -37,8 +37,8 @@ class GasEstimator:
             estimate = web3.eth.estimate_gas(tx)
         except Exception as e:
             # fallback to a safe default if estimation fails
-            print(f"Gas estimation failed: {e}, using default 200,000")
-            return 200000
+            print(f"Gas estimation failed: {e}, using default 500,000")
+            return 500000
 
         # add buffer and return as int
         return int(estimate * buffer)
