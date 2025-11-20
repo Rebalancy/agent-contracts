@@ -1261,7 +1261,7 @@ wheels = [
 
 [[package]]
 name = "near-omni-client"
-version = "0.1.10"
+version = "0.1.11"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "base58" },
@@ -1274,9 +1274,9 @@ dependencies = [
     { name = "secp256k1" },
     { name = "web3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e1/5a/992da858d9dfc9e80845bbab7f4ac98557808722b823654144adc599f85d/near_omni_client-0.1.10.tar.gz", hash = "sha256:60cb7a37fd7fa61a0711a4883d5abb5dd228e843ca08c7e917bd89260dddc6f1", size = 39213 }
+sdist = { url = "https://files.pythonhosted.org/packages/39/91/5d2f9da36b46f2f739e442d58d92d758d180d3c66f45c62540501d2d25b1/near_omni_client-0.1.11.tar.gz", hash = "sha256:09a058fd8909cc2f50a780cfbac643235d07992a4a0c13de622fa02ef1a37bda", size = 39812 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d2/72/9e3002e20c70562951b1d648bc4a468d1eb408734e3c8c67a90089cb8979/near_omni_client-0.1.10-py3-none-any.whl", hash = "sha256:2bfc5a04b2d6bf6455bb7f2cea1ca38526ef92e9e59418f36b2f2fd02dfbf40f", size = 65687 },
+    { url = "https://files.pythonhosted.org/packages/7c/66/38d9372ecfa965b4ba93fb2fc8df70b62ee47b9e666418781764a0b2c7c7/near_omni_client-0.1.11-py3-none-any.whl", hash = "sha256:a9be079d40ef4de8bc553fde65be4b7f91f15659651d3183c86ca9a58c5cbd56", size = 66196 },
 ]
 
 [[package]]
@@ -2052,7 +2052,7 @@ requires-dist = [
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "dstack-sdk", specifier = ">=0.1.8" },
     { name = "matplotlib", specifier = ">=3.10.3" },
-    { name = "near-omni-client", specifier = ">=0.1.10" },
+    { name = "near-omni-client", specifier = ">=0.1.11" },
     { name = "numpy", specifier = ">=2.3.1" },
     { name = "pandas", specifier = ">=2.3.1" },
     { name = "requests", specifier = ">=2.32.4" },
