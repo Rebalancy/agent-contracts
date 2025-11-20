@@ -176,7 +176,7 @@ class RebalancerContract:
                 
         return signed_rlp
 
-    async def build_cctp_burn_tx(self, destination_domain: int, amount: int, burn_token: str):
+    async def build_cctp_burn_tx(self, destination_domain: int, amount: int, max_fee: int, burn_token: str):
         print(f"Building cctp_burn tx")        
         args = {
             "amount": amount,
@@ -184,7 +184,7 @@ class RebalancerContract:
             "mint_recipient": "0x" + self.agent_address_as_bytes32.hex(),
             "burn_token": burn_token,
             "destination_caller": "0x" + self.agent_address_as_bytes32.hex(),
-            "max_fee": self.config.max_bridge_fee,
+            "max_fee": max_fee,
             "min_finality_threshold": self.config.min_bridge_finality_threshold
         }
 
@@ -201,10 +201,10 @@ class RebalancerContract:
         
         return payload_bytes
 
-    async def build_and_sign_cctp_burn_tx(self, source_chain: int, to_chain_id: int, amount: int, burn_token: str, to: str):
+    async def build_and_sign_cctp_burn_tx(self, source_chain: int, to_chain_id: int, amount: int, max_fee: int, burn_token: str, to: str):
         source_chain_as_network = from_chain_id_to_network(source_chain)
         destination_domain = int(from_chain_id_to_network(to_chain_id).domain)
-        input_payload = await self.build_cctp_burn_tx(destination_domain=destination_domain, amount=amount, burn_token=burn_token)
+        input_payload = await self.build_cctp_burn_tx(destination_domain=destination_domain, amount=amount, max_fee=max_fee, burn_token=burn_token)
         gas_limit = self.gas_estimator.estimate_gas_limit(source_chain_as_network, self.agent_address, to, input_payload)
         print(f"Estimated gas limit for burn transaction: {gas_limit}")
 
@@ -215,7 +215,7 @@ class RebalancerContract:
                 "mint_recipient": "0x" + self.agent_address_as_bytes32.hex(),
                 "burn_token": burn_token,
                 "destination_caller": "0x" + self.agent_address_as_bytes32.hex(),
-                "max_fee": self.config.max_bridge_fee,
+                "max_fee": max_fee,
                 "min_finality_threshold": self.config.min_bridge_finality_threshold,
                 "partial_burn_transaction": create_partial_tx(source_chain_as_network, self.agent_address, self.evm_provider, self.gas_estimator, gas_limit).to_dict()
             },

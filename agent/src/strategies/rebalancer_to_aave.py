@@ -2,7 +2,7 @@ import time
 
 from typing import Dict
 from near_omni_client.providers.evm.alchemy_provider import AlchemyFactoryProvider
-from near_omni_client.adapters.cctp.attestation_service import AttestationService
+from near_omni_client.adapters.cctp import AttestationService, FeeService
 
 from .strategy import Strategy
 from helpers import broadcast, Assert, LendingPool, BalanceHelper
@@ -24,9 +24,9 @@ class RebalancerToAave(Strategy):
         print(f"🟩 Flow Rebalancer→Aave | from={from_chain_id} to={to_chain_id} amount={amount}")
 
         # Step 0: setup web3 instances, networks and extract information from remote config
-        network_id = from_chain_id_to_network(from_chain_id)
+        from_network_id = from_chain_id_to_network(from_chain_id)
         to_network_id = from_chain_id_to_network(to_chain_id)
-        web3_instance_source_chain = self.evm_factory_provider.get_provider(network_id)
+        web3_instance_source_chain = self.evm_factory_provider.get_provider(from_network_id)
         web3_instance_destination_chain = self.evm_factory_provider.get_provider(to_network_id)
 
         burn_token = self.remote_config[from_chain_id]["aave"]["asset"]
@@ -59,13 +59,25 @@ class RebalancerToAave(Strategy):
             print(f"Error broadcasting withdraw transaction: {e}")
             return
         
-        # Step 2: Assert balance is correct after withdraw
+        # Step 2: Assert balance is correct after withdraw considering previous balance
         Assert.usdc_agent_balance(web3_instance_source_chain, usdc_token_address, expected_balance=amount + usdc_agent_balance_before)
 
         # Step 3: Approve USDC for burn on source chain
+        destination_domain = int(to_network_id.domain)
+        fee_service = FeeService(from_network_id)
+        cctp_fees_typed = fee_service.get_fees(destination_domain_id=destination_domain)
+        cctp_minimum_fee = cctp_fees_typed.minimumFee
+        print(f"CCTP minimum fee for destination domain {destination_domain}: {cctp_minimum_fee}")
+        cctp_fees = cctp_minimum_fee * amount // 10_000  # assuming BPS is in basis points (1/100 of a percent)
+        print(f"CCTP fees for amount {amount}: {cctp_fees}")
+
+        if cctp_fees > self.config.max_bridge_fee:
+            cctp_fees = self.config.max_bridge_fee
+            print(f"CCTP fees capped to max bridge fee: {cctp_fees}")
+
         approve_payload = await self.rebalancer_contract.build_and_sign_cctp_approve_before_burn_tx(
             source_chain=from_chain_id, 
-            amount=amount, spender=spender, 
+            amount=amount + cctp_fees, spender=spender, # considering the fees
             to=burn_token
         )
         try:
@@ -76,28 +88,30 @@ class RebalancerToAave(Strategy):
                 
         # Step 4: Burn on source chain to initiate CCTP transfer
         print(f"Using burn token: {burn_token} on chainId={from_chain_id}")
-        cttp_fee = CTTPHelper.get_cctp_fee(web3_instance_source_chain, from_chain_id) # TODO
+       
         burn_payload = await self.rebalancer_contract.build_and_sign_cctp_burn_tx(
             source_chain=from_chain_id, 
             to_chain_id=to_chain_id, 
-            amount=amount, 
+            amount=amount + cctp_fees,  # considering the fees
+            max_fee=cctp_fees,
             burn_token=burn_token,
             to=messenger_contract_address
-        ) 
+        )
+
         try:
             burn_tx_hash = broadcast(web3_instance_source_chain, burn_payload)
         except Exception as e:
             print(f"Error broadcasting burn transaction: {e}")
             return
 
-        # Step 4: Assert balance is balance before - fees
-        Assert.usdc_agent_balance(web3_instance_source_chain, usdc_token_address, expected_balance=usdc_agent_balance_before - cttp_fee)
+        # Step 4: Assert balance is (balance before - fees)
+        Assert.usdc_agent_balance(web3_instance_source_chain, usdc_token_address, expected_balance=usdc_agent_balance_before - cctp_fees)
 
         # Step 5: Wait for attestation
         print(f"Burn transaction hash: 0x{burn_tx_hash}")
         print("Getting the attestation...")
 
-        attestation_service = AttestationService(from_chain_id_to_network(from_chain_id))
+        attestation_service = AttestationService(from_network_id)
         attestation  = attestation_service.retrieve_attestation(transaction_hash=f"0x{burn_tx_hash}")
         
         print("Attestation retrieved successfully!")
