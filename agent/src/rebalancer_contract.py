@@ -166,7 +166,6 @@ class RebalancerContract:
             gas=self.config.tx_tgas * TGAS,
             deposit=0
         )
-        print("result", result)
 
         success_value_b64 = result.status.get("SuccessValue")
         if not success_value_b64:
@@ -228,7 +227,6 @@ class RebalancerContract:
             gas=self.config.tx_tgas * TGAS,
             deposit=0
         )
-        print("result", result)
 
         success_value_b64 = result.status.get("SuccessValue")
         if not success_value_b64:
@@ -280,7 +278,6 @@ class RebalancerContract:
             gas=self.config.tx_tgas * TGAS,
             deposit=0
         )
-        print("result", result)
 
         success_value_b64 = result.status.get("SuccessValue")
         if not success_value_b64:
@@ -330,7 +327,6 @@ class RebalancerContract:
             gas=self.config.tx_tgas * TGAS,
             deposit=0
         )
-        print("result", result)
 
         success_value_b64 = result.status.get("SuccessValue")
         if not success_value_b64:
