@@ -133,6 +133,15 @@ def address_to_bytes32(addr: str) -> bytes:
     # Left-pad with zeros to ensure it is 32 bytes
     return addr_bytes.rjust(32, b'\x00')
 
+def extract_signed_rlp_without_prefix(success_value_b64: str) -> bytes:
+    raw = base64.b64decode(success_value_b64)
+
+    int_list = ast.literal_eval(raw.decode("utf-8"))
+
+    payload_bytes = bytes(int_list)
+
+    return payload_bytes
+
 def extract_signed_rlp(success_value_b64: str) -> bytes:
     raw = base64.b64decode(success_value_b64)
 
