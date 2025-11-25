@@ -20,4 +20,5 @@ trait MPCContract {
 trait ThisContract {
     fn sign_callback(&self, nonce: u64, tx_type: u8, ethereum_tx: EVMTransaction) -> Vec<u8>;
     fn sign_crosschain_balance_callback(&self) -> Vec<u8>;
+    fn sign_generic_callback(&self, ethereum_tx: EVMTransaction) -> Vec<u8>;
 }

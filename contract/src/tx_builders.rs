@@ -78,6 +78,13 @@ pub fn build_return_funds_tx(args: RebalancerArgs) -> Vec<u8> {
     input
 }
 
+pub fn build_approve_vault_to_manage_agents_usdc_tx(spender: String) -> Vec<u8> {
+    encoders::cctp::usdc::encode_approve(
+        Address::from_str(&spender).expect("Invalid spender address"),
+        U256::MAX,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

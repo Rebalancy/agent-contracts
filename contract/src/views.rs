@@ -3,7 +3,7 @@ use near_sdk::{near, AccountId};
 use std::str::FromStr;
 
 use crate::{
-    encoders,
+    encoders, tx_builders,
     types::{ActiveSession, ActivityLog, CacheKey, ChainId, Config, Flow, Step, Worker},
     Contract, ContractExt,
 };
@@ -176,6 +176,10 @@ impl Contract {
             amount,
             cross_chain_a_token_balance.unwrap_or(0),
         )
+    }
+
+    pub fn build_approve_vault_to_manage_agents_usdc(&self, spender: String) -> Vec<u8> {
+        tx_builders::build_approve_vault_to_manage_agents_usdc_tx(spender)
     }
 
     pub fn get_pending_step(&self) -> Option<Step> {

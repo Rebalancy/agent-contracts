@@ -175,6 +175,39 @@ impl Contract {
             }
         }
     }
+
+    #[private]
+    pub fn sign_generic_callback(
+        &mut self,
+        #[callback_result] call_result: Result<SignatureResponse, PromiseError>,
+        ethereum_tx: EVMTransaction,
+    ) -> Vec<u8> {
+        match call_result {
+            Ok(signature_response) => {
+                // decode signature and build signed RLP
+                let affine_point_bytes =
+                    hex::decode(signature_response.big_r.affine_point.clone()).expect("bad affine");
+                require!(affine_point_bytes.len() >= 33, "affine too short");
+
+                let r_bytes = affine_point_bytes[1..33].to_vec();
+                let s_bytes = hex::decode(signature_response.s.scalar.clone()).expect("bad s");
+                require!(s_bytes.len() == 32, "s len != 32");
+                let v = signature_response.recovery_id as u64;
+                let signature_omni = Signature {
+                    v,
+                    r: r_bytes,
+                    s: s_bytes,
+                };
+                let signed_rlp = ethereum_tx.build_with_signature(&signature_omni);
+
+                signed_rlp // TODO: Cache signature hashes
+            }
+            Err(e) => {
+                env::log_str(&format!("Callback failed: {:?}", e));
+                vec![]
+            }
+        }
+    }
 }
 
 #[near]
@@ -337,7 +370,7 @@ impl Contract {
 
     pub fn build_and_sign_aave_withdraw_tx(
         &mut self,
-        args: AaveArgs, // define AaveWithdrawArgs if different
+        args: AaveArgs,
         callback_gas_tgas: u64,
     ) -> Promise {
         self.assert_agent_is_calling();
@@ -399,6 +432,29 @@ impl Contract {
         )
     }
 
+    /*
+    GLOBAL ALLOWANCE METHODS
+    */
+    pub fn build_and_sign_approve_vault_to_manage_agents_usdc(
+        &mut self,
+        partial_transaction: EVMTransaction,
+        callback_gas_tgas: u64,
+    ) -> Promise {
+        self.assert_agent_is_calling();
+        let config = self.get_chain_config(&self.source_chain);
+        let mut tx = partial_transaction;
+        tx.input = tx_builders::build_approve_vault_to_manage_agents_usdc_tx(
+            config.rebalancer.vault_address.clone(),
+        );
+        tx.to = Some(
+            Address::from_str(&config.cctp.usdc_address)
+                .expect("Invalid USDC address")
+                .into_array(),
+        );
+
+        self.trigger_signature_without_step_verification(tx, callback_gas_tgas)
+    }
+
     pub(crate) fn trigger_signature(
         &mut self,
         step: Step,
@@ -421,6 +477,20 @@ impl Contract {
             this_contract::ext(env::current_account_id())
                 .with_static_gas(Gas::from_tgas(callback_gas_tgas))
                 .sign_callback(nonce, step as u8, tx),
+        )
+    }
+
+    pub(crate) fn trigger_signature_without_step_verification(
+        &mut self,
+        tx: EVMTransaction,
+        callback_gas_tgas: u64,
+    ) -> Promise {
+        let payload_hash = self.hash_payload(&tx);
+
+        ecdsa::get_sig(payload_hash, PATH.to_string(), KEY_VERSION).then(
+            this_contract::ext(env::current_account_id())
+                .with_static_gas(Gas::from_tgas(callback_gas_tgas))
+                .sign_generic_callback(tx),
         )
     }
 }
