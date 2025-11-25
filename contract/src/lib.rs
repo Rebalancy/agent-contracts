@@ -406,7 +406,7 @@ impl Contract {
         self.trigger_signature(Step::RebalancerDeposit, tx, callback_gas_tgas)
     }
 
-    pub fn build_and_sign_crosschain_balance_snapshot(
+    pub fn build_and_sign_crosschain_balance_snapshot_tx(
         &self,
         args: SnapshotDigestArgs,
         callback_gas_tgas: u64,
@@ -435,7 +435,7 @@ impl Contract {
     /*
     GLOBAL ALLOWANCE METHODS
     */
-    pub fn build_and_sign_approve_vault_to_manage_agents_usdc(
+    pub fn build_and_sign_approve_vault_to_manage_agents_usdc_tx(
         &mut self,
         partial_transaction: EVMTransaction,
         callback_gas_tgas: u64,
