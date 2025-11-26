@@ -7,8 +7,8 @@ from near_omni_client.adapters.cctp import AttestationService, FeeService
 from .strategy import Strategy
 from helpers import broadcast, Assert, LendingPool, BalanceHelper
 from config import Config
-from rebalancer_contract import RebalancerContract
-from tx_types import Flow
+from adapters.rebalancer_contract import RebalancerContract
+from .steps.types import Flow
 from utils import from_chain_id_to_network
 
 class RebalancerToAave(Strategy):
