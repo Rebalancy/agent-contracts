@@ -1,8 +1,9 @@
 from typing import Dict
-from agent.src.steps.tx_types import Flow
 from strategies import Strategy, AaveToAave, RebalancerToAave, AaveToRebalancer
-from agent.src.adapters.rebalancer_contract import RebalancerContract
+from strategies.steps import Flow
+from adapters import RebalancerContract
 from config import Config
+
 
 class StrategyManager:
     _strategies: Dict[Flow, Strategy] | None = None
