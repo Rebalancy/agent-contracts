@@ -4,7 +4,7 @@ def compute_rebalance_operations(
     current_allocations: Dict[int, int],
     optimized_allocations: Dict[int, int]
 ) -> List[Dict[str, int]]:
-    # Calculate the delta for each chain
+    # Step 1: Calculate the delta for each chain
     delta_by_chain = {
         chain_id: optimized_allocations.get(chain_id, 0) - current_allocations.get(chain_id, 0)
         for chain_id in set(current_allocations.keys()) | set(optimized_allocations.keys())
