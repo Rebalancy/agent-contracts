@@ -7,8 +7,7 @@ from near_omni_client.adapters.cctp.attestation_service import AttestationServic
 from .strategy import Strategy
 from helpers import broadcast
 from config import Config
-from rebalancer_contract import RebalancerContract
-from tx_types import Flow
+from adapters import RebalancerContract
 from utils import from_chain_id_to_network
 
 class AaveToRebalancer(Strategy):
