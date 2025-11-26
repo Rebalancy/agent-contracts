@@ -13,8 +13,8 @@ from near_omni_client.json_rpc.exceptions import JsonRpcError
 
 from config import Config
 from helpers.evm_transaction import create_partial_tx
-from helpers.gas_estimator import GasEstimator
-from strategies.steps import Flow
+from helpers import GasEstimator
+from engine_types import Flow
 
 from utils import address_to_bytes32, extract_signed_rlp_without_prefix, from_chain_id_to_network, hex_to_int_list, parse_chain_configs, parse_u32_result, parse_chain_balances, extract_signed_rlp
 

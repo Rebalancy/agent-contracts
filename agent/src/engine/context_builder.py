@@ -87,7 +87,7 @@ async def build_context(config: Config) -> EngineContext:
     rebalancer_contract = RebalancerContract(
         near_client=near_client,
         near_wallet=near_wallet,
-        contract_id=config.contract_id,
+        near_contract_id=config.contract_id,
         agent_address=agent_address,
         gas_estimator=gas_estimator,
         evm_provider=alchemy_factory_provider,

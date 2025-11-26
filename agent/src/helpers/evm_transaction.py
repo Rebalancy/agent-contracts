@@ -2,9 +2,10 @@ from typing import List, Optional
 from dataclasses import dataclass
 
 from web3 import Web3
-from agent.src.helpers.gas_estimator import GasEstimator
 from near_omni_client.providers.interfaces.iprovider_factory import IProviderFactory
 from near_omni_client.networks import Network
+
+from .gas_estimator import GasEstimator
 
 @dataclass
 class EVMTransaction:

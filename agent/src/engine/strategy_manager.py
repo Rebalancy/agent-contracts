@@ -1,6 +1,6 @@
 from typing import Dict
 from strategies import Strategy, AaveToAave, RebalancerToAave, AaveToRebalancer
-from strategies.steps import Flow
+from engine_types import Flow
 from adapters import RebalancerContract
 from config import Config
 

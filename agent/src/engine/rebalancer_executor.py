@@ -1,7 +1,7 @@
 from typing import Dict, List
 
 from .strategy_manager import StrategyManager
-from strategies.steps import Flow
+from engine_types import Flow
 
 def infer_flow(from_chain_id: int, to_chain_id: int, source_chain_id: int) -> Flow:
     if from_chain_id == source_chain_id:

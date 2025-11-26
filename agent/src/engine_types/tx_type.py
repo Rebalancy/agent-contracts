@@ -1,4 +1,5 @@
-from enum import IntEnum, Enum, auto
+from enum import IntEnum
+
 
 class TxType(IntEnum):
     AaveWithdraw                  = 1
@@ -8,7 +9,3 @@ class TxType(IntEnum):
     RebalancerWithdrawToAllocate = 5
     RebalancerDeposit            = 6
 
-class Flow(Enum):
-    RebalancerToAave = auto()
-    AaveToRebalancer = auto()
-    AaveToAave       = auto()
