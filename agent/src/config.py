@@ -20,6 +20,8 @@ class Config:
         self,
         contract_id: str,
         near_network: Network,
+        supported_near_networks: list[Network],
+        supported_evm_networks: list[Network],
         network_short_name: str,
         alchemy_api_key: str,
         callback_gas_tgas: int,
@@ -33,6 +35,8 @@ class Config:
     ):
         self.contract_id = contract_id
         self.near_network = near_network
+        self.supported_near_networks = supported_near_networks
+        self.supported_evm_networks = supported_evm_networks
         self.network_short_name = network_short_name
         self.alchemy_api_key = alchemy_api_key
         self.max_bridge_fee = max_bridge_fee
@@ -55,7 +59,8 @@ class Config:
         near_network_raw = os.getenv("NEAR_NETWORK", "testnet")
         near_network = Network.parse(near_network_raw)
         network_short_name = "testnet" if near_network == Network.NEAR_TESTNET else "mainnet"
-
+        supported_near_networks = [Network.NEAR_TESTNET, Network.NEAR_MAINNET] # Default supported NEAR networks
+        supported_evm_networks = [Network.OPTIMISM_SEPOLIA, Network.ARBITRUM_SEPOLIA] # Default supported EVM networks
         alchemy_api_key = os.getenv("ALCHEMY_API_KEY", "your_alchemy_api_key_here")
         max_bridge_fee = int(os.getenv("MAX_BRIDGE_FEE", "990000"))  # 0.99 USDC (6 decimals)
         min_bridge_finality_threshold = int(os.getenv("MIN_BRIDGE_FINALITY_THRESHOLD", "1000"))
@@ -76,6 +81,8 @@ class Config:
         return cls(
             contract_id=contract_id,
             near_network=near_network,
+            supported_near_networks=supported_near_networks,
+            supported_evm_networks=supported_evm_networks,
             network_short_name=network_short_name,
             alchemy_api_key=alchemy_api_key,
             max_bridge_fee=max_bridge_fee,
@@ -108,6 +115,8 @@ class Config:
         print("Starting Rebalance Agent")
         print(f"Contract ID: {self.contract_id}")
         print(f"Network: {self.near_network} ({self.network_short_name})")
+        print(f"Supported NEAR Networks: {self.supported_near_networks}")
+        print(f"Supported EVM Networks: {self.supported_evm_networks}")
         print(f"Max Bridge Fee: {self.max_bridge_fee}")
         print(f"Min Bridge Finality Threshold: {self.min_bridge_finality_threshold}")
         print(f"One-Time Signer Account ID: {self.one_time_signer_account_id}")
