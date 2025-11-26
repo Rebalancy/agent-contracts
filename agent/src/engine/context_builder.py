@@ -25,8 +25,10 @@ class EngineContext:
     rebalancer_contract: RebalancerContract
     gas_estimator: GasEstimator
     agent_address: str
+    source_chain_id: int
     source_network: Network
-    configs: dict
+    remote_configs: dict
+    vault_address: str
 
 
 async def build_context(config: Config) -> EngineContext:
@@ -95,7 +97,7 @@ async def build_context(config: Config) -> EngineContext:
     # ---------------------------
     # Pull remote configs once
     # ---------------------------
-    configs = await rebalancer_contract.get_all_configs()
+    remote_configs = await rebalancer_contract.get_all_configs()
 
     # ---------------------------
     # Pull source chain ID
@@ -103,6 +105,20 @@ async def build_context(config: Config) -> EngineContext:
     source_chain_id = await rebalancer_contract.get_source_chain()
     source_network = from_chain_id_to_network(source_chain_id)
     
+    # ---------------------------
+    # Source Chain Config 
+    # ---------------------------
+    source_chain_config = remote_configs.get(source_chain_id, None)
+    if not source_chain_config:
+        raise ValueError(f"Source chain config for chain ID {source_chain_id} not found in remote configs.")
+    
+    # ---------------------------
+    # Vault Address
+    # ---------------------------
+    vault_address = source_chain_config["rebalancer"]["vault_address"]
+    if not vault_address:
+        raise ValueError(f"Vault address for source chain {source_chain_id} not found in remote configs.")
+
     # ---------------------------
     # Build context object
     # ---------------------------
@@ -114,6 +130,8 @@ async def build_context(config: Config) -> EngineContext:
         rebalancer_contract=rebalancer_contract,
         gas_estimator=gas_estimator,
         agent_address=agent_address,
-        configs=configs,
+        remote_configs=remote_configs,
+        source_chain_id=source_chain_id,
         source_network=source_network,
+        vault_address=vault_address,
     )
