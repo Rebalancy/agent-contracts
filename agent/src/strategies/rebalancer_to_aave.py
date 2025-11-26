@@ -5,8 +5,9 @@ from near_omni_client.providers.evm.alchemy_provider import AlchemyFactoryProvid
 from near_omni_client.adapters.cctp import AttestationService, FeeService
 
 from .strategy import Strategy
-from helpers import broadcast, Assert, LendingPool, BalanceHelper
+from helpers import broadcast, Assert, BalanceHelper
 from config import Config
+from adapters import LendingPool
 from adapters.rebalancer_contract import RebalancerContract
 from .steps.types import Flow
 from utils import from_chain_id_to_network
