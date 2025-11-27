@@ -46,7 +46,3 @@ class StrategyContext:
         self.cctp_fees = int | None
         self.burn_tx_hash = str | None
         self.attestation = Message | None
-    
-        # self.usdc_agent_balance_before = int | None
-        # self.a_token_address = str | None
-        # self.aave_lending_pool_address = None
