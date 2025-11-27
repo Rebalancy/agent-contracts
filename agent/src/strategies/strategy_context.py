@@ -41,6 +41,7 @@ class StrategyContext:
 
         # ===== filled by phases =====
         self.nonce = int | None
+        self.usdc_agent_balance_before_rebalance = int | None
         self.cctp_fees = int | None
         self.burn_tx_hash = str | None
         self.attestation = Message | None
