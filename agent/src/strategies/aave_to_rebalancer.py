@@ -4,13 +4,13 @@ from typing import Dict
 from near_omni_client.providers.evm import AlchemyFactoryProvider
 from near_omni_client.adapters.cctp.attestation_service import AttestationService
 
-from .strategy import Strategy
+from .strategy import BaseStrategy
 from helpers import broadcast
 from config import Config
 from adapters import RebalancerContract
 from utils import from_chain_id_to_network
 
-class AaveToRebalancer(Strategy):
+class AaveToRebalancer(BaseStrategy):
     def __init__(self, *, rebalancer_contract: RebalancerContract, evm_factory_provider: AlchemyFactoryProvider, vault_address: str, config: Config, remote_config: Dict[str, dict], agent_address: str) -> None:
         self.rebalancer_contract = rebalancer_contract
         self.evm_factory_provider = evm_factory_provider
@@ -92,3 +92,25 @@ class AaveToRebalancer(Strategy):
         print("Deposit transaction broadcasted successfully!")
 
         print("✅ Done Aave→Rebalancer\n")
+
+
+# from engine.phased_strategy import PhasedStrategy
+# from engine.phases.setup_providers import SetupProvidersPhase
+# from engine.phases.withdraw_from_aave import WithdrawFromAavePhase
+# from engine.phases.approve_before_burn import ApproveBeforeBurnPhase
+# from engine.phases.burn import BurnPhase
+# from engine.phases.wait_attestation import WaitAttestationPhase
+# from engine.phases.mint import MintPhase
+# from engine.phases.deposit_into_rebalancer import DepositIntoRebalancerPhase
+
+# class AaveToRebalancer(PhasedStrategy):
+#     NAME = "Aave→Rebalancer"
+#     PHASES = [
+#         SetupProvidersPhase,
+#         WithdrawFromAavePhase,
+#         ApproveBeforeBurnPhase,
+#         BurnPhase,
+#         WaitAttestationPhase,
+#         MintPhase,
+#         DepositIntoRebalancerPhase,
+#     ]
