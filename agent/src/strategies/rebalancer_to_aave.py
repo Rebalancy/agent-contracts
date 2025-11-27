@@ -1,8 +1,8 @@
-from .strategy import BaseStrategy
+from .strategy import Strategy
 from .steps.p0_start_rebalance import StartRebalance
 from .steps.p1_withdraw_from_rebalancer import WithdrawFromRebalancer
 
-class RebalancerToAave(BaseStrategy):
+class RebalancerToAave(Strategy):
     NAME = "Rebalancer→Aave"
     PHASES = [
         StartRebalance,

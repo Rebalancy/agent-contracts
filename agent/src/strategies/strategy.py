@@ -7,7 +7,7 @@ from config import Config
 from .strategy_context import StrategyContext
 from .steps import retry_async_step
 
-class BaseStrategy:
+class Strategy:
     NAME = "BaseStrategy"
     PHASES: list[type] = []
 
