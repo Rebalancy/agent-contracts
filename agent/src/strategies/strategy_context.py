@@ -3,9 +3,7 @@ from adapters import RebalancerContract
 from utils import from_chain_id_to_network
 
 from near_omni_client.providers.evm import AlchemyFactoryProvider
-from near_omni_client.networks import Network
 from near_omni_client.adapters.cctp.attestation_service_types import Message
-from web3 import Web3
 
 class StrategyContext:
     def __init__(
