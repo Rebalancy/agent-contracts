@@ -432,6 +432,19 @@ impl Contract {
         )
     }
 
+    pub fn complete_rebalance(&mut self) {
+        self.assert_agent_is_calling();
+
+        require!(
+            self.active_session.is_some(),
+            "No active session to complete"
+        );
+
+        // TODO: Update ActivityLog with actual amounts, timestamps, etc.
+
+        self.active_session = None;
+    }
+
     /*
     GLOBAL ALLOWANCE METHODS
     */
