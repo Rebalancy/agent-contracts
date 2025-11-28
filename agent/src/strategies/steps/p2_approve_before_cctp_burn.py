@@ -6,14 +6,16 @@ class ApproveBeforeCctpBurn(Step):
     NAME = "ApproveBeforeCctpBurn"
 
     async def run(self, ctx: StrategyContext):
-        spender = ctx.remote_config[ctx.from_chain_id]["cctp"]["messenger_address"]
-        burn_token = ctx.usdc_token_address
+        spender = ctx.messenger_address_on_source_chain # the messenger contract is the spender
+        burn_token = ctx.usdc_token_address_on_source_chain
 
         payload = await ctx.rebalancer_contract.build_and_sign_cctp_approve_before_burn_tx(
             source_chain=ctx.from_chain_id,
-            amount=ctx.amount + (ctx.cctp_fees or 0),
+            amount=ctx.amount + (ctx.cctp_fees or 0), # considering the fees
             spender=spender,
             to=burn_token
         )
 
         broadcaster.broadcast(ctx.web3_source, payload)
+
+        print(f"Approved {ctx.amount + (ctx.cctp_fees or 0)} of token {burn_token} to spender {spender} on chainId={ctx.from_chain_id}")

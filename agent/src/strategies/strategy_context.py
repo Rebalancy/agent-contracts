@@ -40,6 +40,9 @@ class StrategyContext:
         self.usdc_token_address_on_source_chain: str = self.remote_config[from_chain_id]["aave"]["asset"]
         self.usdc_token_address_on_destination_chain: str = self.remote_config[to_chain_id]["aave"]["asset"]
 
+        self.messenger_address_on_source_chain: str = self.remote_config[from_chain_id]["cctp"]["messenger_address"]
+        self.transmitter_address_on_destination_chain: str = self.remote_config[to_chain_id]["cctp"]["transmitter_address"]
+
         # ===== filled by phases =====
         self.nonce: Optional[int] = None
         self.usdc_agent_balance_before_rebalance: Optional[int] = None

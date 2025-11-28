@@ -6,6 +6,7 @@ from .steps.p0_get_usdc_agent_balance_before_rebalance import GetUSDCBalanceBefo
 from .steps.p2_compute_cctp_fees import ComputeCctpFees
 from .steps.p2_approve_before_cctp_burn import ApproveBeforeCctpBurn
 from .steps.p2_cctp_burn import CctpBurn
+from .steps.p2_cctp_burn_after_assertion import CctpBurnAfterAssertion
 
 class RebalancerToAave(Strategy):
     NAME = "Rebalancer→Aave"
@@ -15,8 +16,9 @@ class RebalancerToAave(Strategy):
         WithdrawFromRebalancer,
         WithdrawFromRebalancerAfterAssertion,
         ComputeCctpFees,
-        # ApproveBeforeCctpBurn,
-        # CctpBurn,
+        ApproveBeforeCctpBurn,
+        CctpBurn,
+        CctpBurnAfterAssertion,
         # WaitAttestationPhase,
         # MintPhase,
         # AssertPostMintBalancePhase,
@@ -24,46 +26,7 @@ class RebalancerToAave(Strategy):
         # SupplyAavePhase,
     ]
 
-    # async def execute(self, *, from_chain_id: int, to_chain_id: int, amount: int) -> None:
-
-    # falta    spender = self.remote_config[from_chain_id]["cctp"]["messenger_address"] # the messenger contract is the spender
-    # falta    transmitter_contract_address = self.remote_config[to_chain_id]["cctp"]["transmitter_address"]
-    # falta    messenger_contract_address = spender
-
-
-    #     approve_payload = await self.rebalancer_contract.build_and_sign_cctp_approve_before_burn_tx(
-    #         source_chain=from_chain_id, 
-    #         amount=amount + cctp_fees, # considering the fees
-    #         spender=spender,
-    #         to=burn_token
-    #     )
-    #     try:
-    #         broadcast(web3_instance_source_chain, approve_payload)
-    #     except Exception as e:
-    #         print(f"Error broadcasting approve transaction: {e}")
-    #         return
-                
-    #     # Step 4: Burn on source chain to initiate CCTP transfer
-    #     print(f"Using burn token: {burn_token} on chainId={from_chain_id}")
-       
-    #     burn_payload = await self.rebalancer_contract.build_and_sign_cctp_burn_tx(
-    #         source_chain=from_chain_id, 
-    #         to_chain_id=to_chain_id, 
-    #         amount=amount + cctp_fees,  # considering the fees
-    #         max_fee=cctp_fees,
-    #         burn_token=burn_token,
-    #         to=messenger_contract_address
-    #     )
-
-    #     try:
-    #         burn_tx_hash = broadcast(web3_instance_source_chain, burn_payload)
-    #     except Exception as e:
-    #         print(f"Error broadcasting burn transaction: {e}")
-    #         return
-
-    #     # Step 4: Assert balance is (balance before - fees)
-    #     Assert.usdc_agent_balance(web3_instance_source_chain, usdc_token_address, expected_balance=usdc_agent_balance_before - cctp_fees)
-
+   
     #     # Step 5: Wait for attestation
     #     print(f"Burn transaction hash: 0x{burn_tx_hash}")
     #     print("Getting the attestation...")
