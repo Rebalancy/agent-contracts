@@ -9,7 +9,7 @@ from .steps import retry_async_step
 
 class Strategy:
     NAME = "BaseStrategy"
-    PHASES: list[type] = []
+    STEPS: list[type] = []
 
     def __init__(self, *, rebalancer_contract: RebalancerContract, evm_factory_provider: AlchemyFactoryProvider, vault_address: str, config: Config, remote_config: Dict[str, dict], agent_address: str):
         self.rebalancer_contract = rebalancer_contract

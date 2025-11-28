@@ -1,3 +1,4 @@
+from typing import Optional
 from config import Config
 from adapters import RebalancerContract
 from utils import from_chain_id_to_network
@@ -36,12 +37,12 @@ class StrategyContext:
         self.web3_source = evm_factory_provider.get_provider(self.from_network_id)
         self.web3_destination = evm_factory_provider.get_provider(self.to_network_id)
 
-        self.usdc_token_address_on_source_chain = str | None
-        self.usdc_token_address_on_destination_chain = str | None
+        self.usdc_token_address_on_source_chain: str = self.remote_config[from_chain_id]["aave"]["asset"]
+        self.usdc_token_address_on_destination_chain: str = self.remote_config[to_chain_id]["aave"]["asset"]
 
         # ===== filled by phases =====
-        self.nonce = int | None
-        self.usdc_agent_balance_before_rebalance = int | None
-        self.cctp_fees = int | None
-        self.burn_tx_hash = str | None
-        self.attestation = Message | None
+        self.nonce: Optional[int] = None
+        self.usdc_agent_balance_before_rebalance: Optional[int] = None
+        self.cctp_fees: Optional[int] = None
+        self.burn_tx_hash: Optional[str] = None
+        self.attestation: Optional[Message] = None

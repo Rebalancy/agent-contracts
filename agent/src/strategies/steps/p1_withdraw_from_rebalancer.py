@@ -1,7 +1,9 @@
 from helpers import Assert,broadcaster
-from strategy_context import StrategyContext
+from ..strategy_context import StrategyContext
+from .step import Step
 
-class WithdrawFromRebalancer:
+
+class WithdrawFromRebalancer(Step):
     NAME = "WithdrawFromRebalancer"
 
     async def run(self, ctx: StrategyContext) -> None:
