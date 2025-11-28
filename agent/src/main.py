@@ -53,7 +53,7 @@ async def main():
         source_chain_id=context.source_chain_id,
         rebalance_operations=rebalance_operations
     )
-    print("Rebalance operations computed successfully.")
+    print("✅ Rebalance operations computed successfully.")
 
 
 if __name__ == "__main__":
