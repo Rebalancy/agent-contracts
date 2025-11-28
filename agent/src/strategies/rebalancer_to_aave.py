@@ -1,6 +1,7 @@
 from .strategy import Strategy
 from .steps.p0_start_rebalance import StartRebalance
 from .steps.p1_withdraw_from_rebalancer import WithdrawFromRebalancer
+from .steps.p1_withdraw_from_rebalancer_after_assertion import WithdrawFromRebalancerAfterAssertion
 from .steps.p0_get_usdc_agent_balance_before_rebalance import GetUSDCBalanceBeforeRebalance
 
 class RebalancerToAave(Strategy):
@@ -9,6 +10,7 @@ class RebalancerToAave(Strategy):
         GetUSDCBalanceBeforeRebalance,
         StartRebalance,
         WithdrawFromRebalancer,
+        WithdrawFromRebalancerAfterAssertion,
         # ComputeCCTPFeesPhase,
         # ApproveBeforeBurnPhase,
         # BurnPhase,
