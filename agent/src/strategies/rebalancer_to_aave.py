@@ -14,6 +14,7 @@ from .steps.p5_approve_aave_before_supply import ApproveAaveUSDCBeforeSupply
 from .steps.p5_get_a_token_agent_balance_before_supply import GetATokenBalanceBeforeSupply
 from .steps.p5_supply_aave import SupplyAave
 from .steps.p5_supply_aave_after_assertion import SupplyAaveAfterAssertion
+from steps.p6_complete_rebalance import CompleteRebalance
 
 class RebalancerToAave(Strategy):
     NAME = "Rebalancer→Aave"
@@ -32,5 +33,6 @@ class RebalancerToAave(Strategy):
         ApproveAaveUSDCBeforeSupply,
         GetATokenBalanceBeforeSupply,
         SupplyAave,
-        SupplyAaveAfterAssertion
+        SupplyAaveAfterAssertion,
+        CompleteRebalance,
     ]
