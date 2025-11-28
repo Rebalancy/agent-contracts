@@ -1,4 +1,4 @@
-from helpers import Assert,broadcaster
+from helpers import broadcast
 from ..strategy_context import StrategyContext
 from .step import Step
 
@@ -13,6 +13,6 @@ class WithdrawFromRebalancer(Step):
             to=ctx.vault_address
         )
         
-        broadcaster.broadcast(ctx.web3_source, payload)
+        broadcast(ctx.web3_source, payload)
 
         print(f"Withdrew {ctx.amount} USDC from rebalancer on chain {ctx.from_chain_id}.")

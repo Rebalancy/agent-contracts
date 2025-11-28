@@ -1,4 +1,4 @@
-from helpers import broadcaster
+from helpers import broadcast
 from ..strategy_context import StrategyContext
 from .step import Step
 
@@ -16,6 +16,6 @@ class ApproveBeforeCctpBurn(Step):
             to=burn_token
         )
 
-        broadcaster.broadcast(ctx.web3_source, payload)
+        broadcast(ctx.web3_source, payload)
 
         print(f"Approved {ctx.amount + (ctx.cctp_fees or 0)} of token {burn_token} to spender {spender} on chainId={ctx.from_chain_id}")

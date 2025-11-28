@@ -1,4 +1,4 @@
-from helpers import broadcaster
+from helpers import broadcast
 from ..strategy_context import StrategyContext
 from .step import Step
 
@@ -17,7 +17,7 @@ class CctpBurn(Step):
             to=ctx.messenger_address_on_source_chain
         )
 
-        tx_hash = broadcaster.broadcast(ctx.web3_source, payload)
+        tx_hash = broadcast(ctx.web3_source, payload)
 
         print(f"Burn transaction broadcasted successfully!")
 

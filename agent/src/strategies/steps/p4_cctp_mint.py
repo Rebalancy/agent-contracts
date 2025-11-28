@@ -1,5 +1,5 @@
 import time
-from helpers import broadcaster
+from helpers import broadcast
 from ..strategy_context import StrategyContext
 from .step import Step
 
@@ -14,7 +14,7 @@ class CttpMint(Step):
             to=ctx.transmitter_address_on_destination_chain
         )
 
-        broadcaster.broadcast(ctx.web3_destination, payload)
+        broadcast(ctx.web3_destination, payload)
 
         print("Mint transaction broadcasted successfully!")
 
