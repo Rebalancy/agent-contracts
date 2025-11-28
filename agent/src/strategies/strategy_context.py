@@ -43,9 +43,15 @@ class StrategyContext:
         self.messenger_address_on_source_chain: str = self.remote_config[from_chain_id]["cctp"]["messenger_address"]
         self.transmitter_address_on_destination_chain: str = self.remote_config[to_chain_id]["cctp"]["transmitter_address"]
 
+        self.aave_lending_pool_address_on_destination_chain: str = self.remote_config[to_chain_id]["aave"]["lending_pool_address"]
+        self.aave_lending_pool_address_on_source_chain: str = self.remote_config[from_chain_id]["aave"]["lending_pool_address"]
+
         # ===== filled by phases =====
         self.nonce: Optional[int] = None
         self.usdc_agent_balance_before_rebalance: Optional[int] = None
         self.cctp_fees: Optional[int] = None
         self.burn_tx_hash: Optional[str] = None
         self.attestation: Optional[Message] = None
+
+        self.a_token_address_on_destination_chain: Optional[str] = None
+        self.a_token_balance_before_supply: Optional[int] = None

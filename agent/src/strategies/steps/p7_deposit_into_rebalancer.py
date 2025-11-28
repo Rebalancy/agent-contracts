@@ -1,4 +1,4 @@
-from helpers import broadcaster
+from helpers import broadcast
 from ..strategy_context import StrategyContext
 
 class DepositIntoRebalancer:
@@ -9,4 +9,4 @@ class DepositIntoRebalancer:
             to_chain_id=ctx.to_chain_id,
             amount=ctx.amount
         )
-        broadcaster.broadcast(ctx.web3_destination, payload)
+        broadcast(ctx.web3_destination, payload)
