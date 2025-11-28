@@ -1,9 +1,11 @@
 from helpers import broadcaster
+from ..strategy_context import StrategyContext
+from .step import Step
 
-class CttpBurn:
-    NAME = "CttpBurn"
+class CctpBurn(Step):
+    NAME = "CctpBurn"
 
-    async def run(self, ctx):
+    async def run(self, ctx: StrategyContext):
         spender = ctx.remote_config[ctx.from_chain_id]["cctp"]["messenger_address"]
         burn_token = ctx.usdc_token_address
 

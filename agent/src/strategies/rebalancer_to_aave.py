@@ -3,6 +3,9 @@ from .steps.p0_start_rebalance import StartRebalance
 from .steps.p1_withdraw_from_rebalancer import WithdrawFromRebalancer
 from .steps.p1_withdraw_from_rebalancer_after_assertion import WithdrawFromRebalancerAfterAssertion
 from .steps.p0_get_usdc_agent_balance_before_rebalance import GetUSDCBalanceBeforeRebalance
+from .steps.p2_compute_cctp_fees import ComputeCctpFees
+from .steps.p2_approve_before_cctp_burn import ApproveBeforeCctpBurn
+from .steps.p2_cctp_burn import CctpBurn
 
 class RebalancerToAave(Strategy):
     NAME = "Rebalancer→Aave"
@@ -11,9 +14,9 @@ class RebalancerToAave(Strategy):
         StartRebalance,
         WithdrawFromRebalancer,
         WithdrawFromRebalancerAfterAssertion,
-        # ComputeCCTPFeesPhase,
-        # ApproveBeforeBurnPhase,
-        # BurnPhase,
+        ComputeCctpFees,
+        # ApproveBeforeCctpBurn,
+        # CctpBurn,
         # WaitAttestationPhase,
         # MintPhase,
         # AssertPostMintBalancePhase,
@@ -23,25 +26,10 @@ class RebalancerToAave(Strategy):
 
     # async def execute(self, *, from_chain_id: int, to_chain_id: int, amount: int) -> None:
 
-    # falta    burn_token = self.remote_config[from_chain_id]["aave"]["asset"]
     # falta    spender = self.remote_config[from_chain_id]["cctp"]["messenger_address"] # the messenger contract is the spender
     # falta    transmitter_contract_address = self.remote_config[to_chain_id]["cctp"]["transmitter_address"]
     # falta    messenger_contract_address = spender
-    # falta    usdc_token_address = burn_token
 
-
-    #     # Step 3: Approve USDC for burn on source chain
-    #     destination_domain = int(to_network_id.domain)
-    #     fee_service = FeeService(from_network_id)
-    #     cctp_fees_typed = fee_service.get_fees(destination_domain_id=destination_domain)
-    #     cctp_minimum_fee = cctp_fees_typed.minimumFee
-    #     print(f"CCTP minimum fee for destination domain {destination_domain}: {cctp_minimum_fee}")
-    #     cctp_fees = int((cctp_minimum_fee * amount // 10_000) * 1.05) # assuming BPS is in basis points (1/100 of a percent) + a 5% buffer
-    #     print(f"CCTP fees for amount {amount}: {cctp_fees}")
-
-    #     if cctp_fees > self.config.max_bridge_fee:
-    #         cctp_fees = self.config.max_bridge_fee
-    #         print(f"CCTP fees capped to max bridge fee: {cctp_fees}")
 
     #     approve_payload = await self.rebalancer_contract.build_and_sign_cctp_approve_before_burn_tx(
     #         source_chain=from_chain_id, 
