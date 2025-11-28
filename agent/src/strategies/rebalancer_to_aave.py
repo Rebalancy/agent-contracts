@@ -7,6 +7,9 @@ from .steps.p2_compute_cctp_fees import ComputeCctpFees
 from .steps.p2_approve_before_cctp_burn import ApproveBeforeCctpBurn
 from .steps.p2_cctp_burn import CctpBurn
 from .steps.p2_cctp_burn_after_assertion import CctpBurnAfterAssertion
+from .steps.p3_wait_attestation import WaitAttestation
+from .steps.p4_cctp_mint import CttpMint
+from .steps.p4_cctp_mint_after_assertion import CttpMintAfterAssertion
 
 class RebalancerToAave(Strategy):
     NAME = "Rebalancer→Aave"
@@ -19,48 +22,12 @@ class RebalancerToAave(Strategy):
         ApproveBeforeCctpBurn,
         CctpBurn,
         CctpBurnAfterAssertion,
-        # WaitAttestationPhase,
-        # MintPhase,
-        # AssertPostMintBalancePhase,
+        WaitAttestation,
+        CttpMint,
+        CttpMintAfterAssertion,
         # ApproveAavePhase,
         # SupplyAavePhase,
     ]
-
-   
-    #     # Step 5: Wait for attestation
-    #     print(f"Burn transaction hash: 0x{burn_tx_hash}")
-    #     print("Getting the attestation...")
-
-    #     attestation_service = AttestationService(from_network_id)
-    #     attestation  = attestation_service.retrieve_attestation(transaction_hash=f"0x{burn_tx_hash}")
-        
-    #     print("Attestation retrieved successfully!")
-    #     print(f"Attestation: {attestation}")
-
-    #     time.sleep(3)
-        
-    #     # Step 6: Mint on destination chain
-    #     mint_payload = await self.rebalancer_contract.build_and_sign_cctp_mint_tx(
-    #         to_chain_id=to_chain_id, 
-    #         message=attestation.message, 
-    #         attestation=attestation.attestation, 
-    #         to=transmitter_contract_address
-    #     )
-
-    #     try:
-    #         broadcast(web3_instance_destination_chain, mint_payload)
-    #     except Exception as e:
-    #         print(f"Error broadcasting mint transaction: {e}")
-    #         return
-
-    #     print("Mint transaction broadcasted successfully!")
-
-    #     time.sleep(5)
-
-    #     # Step 6: Assert balance is correct after mint
-    #     usdc_address_on_destination_chain = self.remote_config[to_chain_id]["aave"]["asset"]
-    #     print(f"USDC on destination chain: {usdc_address_on_destination_chain}")
-    #     Assert.usdc_agent_balance_is_at_least(web3_instance_destination_chain, usdc_address_on_destination_chain, expected_balance=amount)
 
     #     # Step 7: Approve USDC before supply on destination chain
     #     aave_lending_pool_address = self.remote_config[to_chain_id]["aave"]["lending_pool_address"] # the lending pool is the spender
