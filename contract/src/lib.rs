@@ -432,8 +432,11 @@ impl Contract {
         )
     }
 
-    pub fn complete_rebalance(&mut self) {
+    pub fn complete_rebalance(&mut self) -> u64 {
         self.assert_agent_is_calling();
+
+        let session = self.get_active_session();
+        let nonce = session.nonce;
 
         require!(
             self.active_session.is_some(),
@@ -443,6 +446,8 @@ impl Contract {
         // TODO: Update ActivityLog with actual amounts, timestamps, etc.
 
         self.active_session = None;
+
+        nonce
     }
 
     /*
