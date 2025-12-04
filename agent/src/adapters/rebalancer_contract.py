@@ -425,8 +425,8 @@ class RebalancerContract:
         payload_bytes = bytes(int_list)
         return payload_bytes
     
-    async def build_and_sign_aave_withdraw_tx(self, to_chain_id: int, asset: str, amount: int, on_behalf_of: str, to: str):
-        chain_network = from_chain_id_to_network(to_chain_id)
+    async def build_and_sign_aave_withdraw_tx(self, chain_id: int, asset: str, amount: int, on_behalf_of: str, to: str):
+        chain_network = from_chain_id_to_network(chain_id)
         input_payload = await self.build_aave_withdraw_tx(asset, amount, on_behalf_of)
         gas_limit = self.gas_estimator.estimate_gas_limit(chain_network, self.agent_address, to, input_payload)
         print(f"Estimated gas limit for withdraw aave transaction: {gas_limit}")
