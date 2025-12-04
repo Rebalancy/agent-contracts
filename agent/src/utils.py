@@ -177,6 +177,33 @@ def hex_to_int_list(hex_str: str) -> list[int]:
         hex_str = hex_str[2:]
     return list(binascii.unhexlify(hex_str))
 
+def parse_supported_chains(response: Any) -> list[int]:
+    """
+    Parse a NEAR contract response containing supported chain IDs.
+    
+    Args:
+        response: The response from `call_contract`, must have `.result` as list[int].
+    
+    Returns:
+        list[int]: A list of supported chain IDs.
+    
+    Raises:
+        ValueError: If the response format is invalid or parsing fails.
+    """
+    if not hasattr(response, "result") or not isinstance(response.result, list):
+        raise ValueError("Invalid response: expected .result to be list[int]")
+
+    try:
+        raw = bytes(response.result).decode("utf-8")
+        parsed = json.loads(raw)
+
+        if not isinstance(parsed, list):
+            raise ValueError("Expected a list of chain IDs")
+        return parsed
+    except Exception as e:
+        raise ValueError(f"Failed to parse supported chains: {e}")
+
+
 if __name__ == "__main__":
     if len(sys.argv) != 4:
         print("Usage: python -m agent.src.utils <account_id> <network> <path>")
