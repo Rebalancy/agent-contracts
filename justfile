@@ -24,6 +24,9 @@ test-agent:
 run_agent:
     cd agent && uv run src/main.py
 
+run_agent_override KEY RATE:
+    OVERRIDE_INTEREST_RATES='{"{{KEY}}": {{RATE}} }' just run_agent
+
 # contract
 create-account ACCOUNT_ID:
     echo "Creating NEAR account: {{ACCOUNT_ID}}..."
