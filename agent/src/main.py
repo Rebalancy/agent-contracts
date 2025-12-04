@@ -27,7 +27,6 @@ async def main():
     StrategyManager.configure(rebalancer_contract=context.rebalancer_contract, evm_factory_provider = context.evm_factory_provider, vault_address=vault_address, config=config, remote_config=context.remote_configs, agent_address=agent_evm_address)
 
     current_allocations, total_assets_under_management = await get_allocations(context)
-    print("Current Allocations after fetching totalAssets:", current_allocations)
     
     extra_data_for_optimization = await get_extra_data_for_optimization(
         total_assets_under_management=total_assets_under_management,

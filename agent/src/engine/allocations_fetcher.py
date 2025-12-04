@@ -11,10 +11,8 @@ async def get_allocations(context: EngineContext) -> tuple[dict[str, int], int]:
         network_id = from_chain_id_to_network(chain_id)
         web3_instance = context.evm_factory_provider.get_provider(network_id)
         aave_lending_pool_address = context.remote_configs[chain_id]["aave"]["lending_pool_address"]
-        print(f"Fetching allocation for chain ID {chain_id} using Aave Lending Pool at {aave_lending_pool_address}")
         usdc_token_address: str = context.remote_configs[chain_id]["aave"]["asset"]
-        print(f"USDC Token Address on chain ID {chain_id}: {usdc_token_address}")
-        a_token_address = LendingPool.get_atoken_address(web3_instance=web3_instance, aave_lending_pool_address=aave_lending_pool_address, asset_address=usdc_token_address)
+        a_token_address = LendingPool.get_atoken_address(web3_instance=web3_instance, lending_pool_address=aave_lending_pool_address, asset_address=usdc_token_address)
 
         if not a_token_address:
             raise ValueError("Failed to get AToken address on destination chain.")
