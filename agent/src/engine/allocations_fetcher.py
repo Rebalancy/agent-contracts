@@ -1,5 +1,5 @@
 from engine import EngineContext
-from adapters import LendingPool # Vault
+from adapters import LendingPool
 from helpers import BalanceHelper
 from utils import from_chain_id_to_network
 
