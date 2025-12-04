@@ -11,3 +11,5 @@ class WithdrawFromAave(Step):
             amount=ctx.amount
         )
         broadcast(ctx.web3_source, payload)
+
+        print("✅ Withdraw from Aave transaction broadcasted successfully!")
