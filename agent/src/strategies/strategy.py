@@ -3,6 +3,7 @@ from near_omni_client.providers.evm.alchemy_provider import AlchemyFactoryProvid
 
 from adapters import RebalancerContract
 from config import Config
+from engine_types import Flow
 
 from .strategy_context import StrategyContext
 from .steps import retry_async_step
@@ -27,7 +28,7 @@ class Strategy:
         )
         await self._run_phases(ctx, restart_from)
 
-    def _make_context(self, *, from_chain_id: int, to_chain_id: int, amount: int) -> StrategyContext:
+    def _make_context(self, *, from_chain_id: int, to_chain_id: int, flow: Flow, amount: int) -> StrategyContext:
         print(f"🟩 Flow {self.NAME} | from={from_chain_id} to={to_chain_id} amount={amount}")
         return StrategyContext(
             from_chain_id=from_chain_id,
@@ -38,7 +39,8 @@ class Strategy:
             agent_address=self.agent_address,
             vault_address=self.vault_address,
             evm_factory_provider=self.evm_factory_provider,
-            rebalancer_contract=self.rebalancer_contract
+            rebalancer_contract=self.rebalancer_contract,
+            flow=flow
         )
 
     async def _run_phases(self, ctx: StrategyContext, restart_from: Optional[str] = None):

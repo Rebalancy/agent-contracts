@@ -9,7 +9,7 @@ class StartRebalance(Step):
     async def run(self, ctx: StrategyContext) -> None:
         print("Starting rebalance...")
         ctx.nonce = await ctx.rebalancer_contract.start_rebalance(
-            flow=Flow.RebalancerToAave,
+            flow=ctx.flow,
             source_chain=ctx.from_chain_id,
             destination_chain=ctx.to_chain_id,
             expected_amount=ctx.amount

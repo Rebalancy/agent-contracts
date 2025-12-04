@@ -2,6 +2,7 @@ from typing import Optional
 from config import Config
 from adapters import RebalancerContract
 from utils import from_chain_id_to_network
+from engine_types import Flow
 
 from near_omni_client.providers.evm import AlchemyFactoryProvider
 from near_omni_client.adapters.cctp.attestation_service_types import Message
@@ -19,11 +20,13 @@ class StrategyContext:
         vault_address: str,
         evm_factory_provider: AlchemyFactoryProvider,
         rebalancer_contract: RebalancerContract,
+        flow: Flow
     ):
         self.from_chain_id = from_chain_id
         self.to_chain_id = to_chain_id
         self.amount = amount
-
+        self.flow = flow
+        
         self.remote_config = remote_config
         self.config = config
         self.agent_address = agent_address
