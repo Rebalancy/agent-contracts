@@ -1,6 +1,5 @@
 import asyncio
 
-
 from config import Config
 from helpers import Assert, BalanceHelper
 from optimizer import get_extra_data_for_optimization, optimize_chain_allocation_with_direction
@@ -14,6 +13,18 @@ async def main():
     # Build engine context
     context = await build_context(config)
     print("Remote configs for all chains:", context.remote_configs)
+
+    agent_evm_address = context.agent_address
+    vault_address = context.vault_address
+
+    # Configure Balance Helper
+    BalanceHelper.configure(rebalancer_vault_address=vault_address, agent_address=agent_evm_address)
+
+    # Configure Assert
+    Assert.configure(rebalancer_vault_address=vault_address, agent_address=agent_evm_address)
+
+    # Configure Strategies
+    StrategyManager.configure(rebalancer_contract=context.rebalancer_contract, evm_factory_provider = context.evm_factory_provider, vault_address=vault_address, config=config, remote_config=context.remote_configs, agent_address=agent_evm_address)
 
     current_allocations, total_assets_under_management = await get_allocations(context)
     print("Current Allocations after fetching totalAssets:", current_allocations)
@@ -35,18 +46,6 @@ async def main():
     if not rebalance_operations:
         print("No rebalance operations needed.")
         return
-
-    agent_evm_address = context.agent_address
-    vault_address = context.vault_address
-
-    # Configure Balance Helper
-    BalanceHelper.configure(rebalancer_vault_address=vault_address, agent_address=agent_evm_address)
-
-    # Configure Assert
-    Assert.configure(rebalancer_vault_address=vault_address, agent_address=agent_evm_address)
-
-    # Configure Strategies
-    StrategyManager.configure(rebalancer_contract=context.rebalancer_contract, evm_factory_provider = context.evm_factory_provider, vault_address=vault_address, config=config, remote_config=context.remote_configs, agent_address=agent_evm_address)
 
     # Execute Rebalance Operations 
     await execute_all_rebalance_operations(
