@@ -12,7 +12,6 @@ pub struct ActivityLog {
     pub destination_chain: ChainId,
     pub timestamp: u64,
     pub nonce: u64,
-    pub expected_amount: u128,
-    pub actual_amount: Option<u128>,
+    pub amount: u128,
     pub transactions: Vec<Vec<u8>>,
 }

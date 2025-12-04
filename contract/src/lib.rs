@@ -217,7 +217,9 @@ impl Contract {
         flow: Flow,
         source_chain: ChainId,
         destination_chain: ChainId,
-        expected_amount: u128,
+        amount: u128,
+        source_chain_allocation_before: u128,
+        destination_chain_allocation_before: u128,
     ) -> u64 {
         self.assert_no_active_session();
         self.assert_agent_is_calling();
@@ -236,8 +238,7 @@ impl Contract {
                 transactions: vec![],
                 timestamp: env::block_timestamp_ms(),
                 nonce,
-                expected_amount,
-                actual_amount: None,
+                amount,
             },
         );
 
@@ -246,6 +247,12 @@ impl Contract {
             flow,
             started_at: env::block_timestamp_ms(),
         });
+
+        self.allocations
+            .insert(source_chain, source_chain_allocation_before);
+
+        self.allocations
+            .insert(destination_chain, destination_chain_allocation_before);
 
         nonce
     }
@@ -443,7 +450,31 @@ impl Contract {
             "No active session to complete"
         );
 
-        // TODO: Update ActivityLog with actual amounts, timestamps, etc.
+        let log = self.logs.get(&nonce).expect("ActivityLog missing");
+
+        let source_chain = log.source_chain;
+        let destination_chain = log.destination_chain;
+
+        let source_chain_allocation = self
+            .allocations
+            .get(&source_chain)
+            .expect("Source chain allocation missing");
+
+        let destination_chain_allocation = self
+            .allocations
+            .get(&destination_chain)
+            .expect("Destination chain allocation missing");
+
+        let new_source_chain_allocation = source_chain_allocation.saturating_sub(log.amount);
+
+        let new_destination_chain_allocation =
+            destination_chain_allocation.saturating_add(log.amount);
+
+        self.allocations
+            .insert(source_chain, new_source_chain_allocation);
+
+        self.allocations
+            .insert(destination_chain, new_destination_chain_allocation);
 
         self.active_session = None;
 
