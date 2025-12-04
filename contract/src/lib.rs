@@ -44,7 +44,6 @@ pub struct Contract {
     pub config: LookupMap<ChainId, Config>,
     pub logs: IterableMap<u64, ActivityLog>,
     pub logs_nonce: u64,
-    pub allocations: LookupMap<ChainId, u128>,
     pub supported_chains: Vec<ChainId>,
     pub active_session: Option<ActiveSession>,
     pub signatures_by_nonce_and_type: LookupMap<CacheKey, Vec<u8>>, // (nonce, tx_type) -> signed RLP prefixed (tx_type || rlp)
@@ -64,7 +63,6 @@ impl Contract {
             worker_by_account_id: IterableMap::new(b"b"),
             config: LookupMap::new(b"c"),
             source_chain,
-            allocations: LookupMap::new(b"d"),
             logs: IterableMap::new(b"e"),
             logs_nonce: 0,
             active_session: None,
@@ -218,8 +216,6 @@ impl Contract {
         source_chain: ChainId,
         destination_chain: ChainId,
         amount: u128,
-        source_chain_allocation_before: u128,
-        destination_chain_allocation_before: u128,
     ) -> u64 {
         self.assert_no_active_session();
         self.assert_agent_is_calling();
@@ -247,12 +243,6 @@ impl Contract {
             flow,
             started_at: env::block_timestamp_ms(),
         });
-
-        self.allocations
-            .insert(source_chain, source_chain_allocation_before);
-
-        self.allocations
-            .insert(destination_chain, destination_chain_allocation_before);
 
         nonce
     }
@@ -449,32 +439,6 @@ impl Contract {
             self.active_session.is_some(),
             "No active session to complete"
         );
-
-        let log = self.logs.get(&nonce).expect("ActivityLog missing");
-
-        let source_chain = log.source_chain;
-        let destination_chain = log.destination_chain;
-
-        let source_chain_allocation = self
-            .allocations
-            .get(&source_chain)
-            .expect("Source chain allocation missing");
-
-        let destination_chain_allocation = self
-            .allocations
-            .get(&destination_chain)
-            .expect("Destination chain allocation missing");
-
-        let new_source_chain_allocation = source_chain_allocation.saturating_sub(log.amount);
-
-        let new_destination_chain_allocation =
-            destination_chain_allocation.saturating_add(log.amount);
-
-        self.allocations
-            .insert(source_chain, new_source_chain_allocation);
-
-        self.allocations
-            .insert(destination_chain, new_destination_chain_allocation);
 
         self.active_session = None;
 

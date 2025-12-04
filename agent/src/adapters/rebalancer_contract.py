@@ -16,7 +16,7 @@ from helpers.evm_transaction import create_partial_tx
 from helpers import GasEstimator
 from engine_types import Flow
 
-from utils import address_to_bytes32, extract_signed_rlp_without_prefix, from_chain_id_to_network, hex_to_int_list, parse_chain_configs, parse_u32_result, parse_chain_balances, extract_signed_rlp
+from utils import address_to_bytes32, extract_signed_rlp_without_prefix, from_chain_id_to_network, hex_to_int_list, parse_chain_configs, parse_u32_result, parse_chain_balances, extract_signed_rlp, parse_supported_chains
 
 TGAS = 1_000_000_000_000  # 1 TeraGas
 
@@ -47,20 +47,20 @@ class RebalancerContract:
         )
         return parse_u32_result(source_chain_raw)
 
-    async def get_allocations(self):
-        allocations_raw = await self.near_client.call_contract(
+    async def get_supported_chains(self) -> list[int]:
+        supported_chains_raw = await self.near_client.call_contract(
             contract_id=self.near_contract_id,
-            method="get_allocations",
+            method="get_supported_chains",
             args={}
         )
-        return parse_chain_balances(allocations_raw)
+        return parse_supported_chains(supported_chains_raw)
 
     async def start_rebalance(self, flow: Flow, source_chain: int, destination_chain: int, expected_amount: int) -> int:        
         args = {
             "flow": flow.name,
             "source_chain": source_chain,
             "destination_chain": destination_chain,
-            "expected_amount": expected_amount
+            "amount": expected_amount,
         }
 
         result = await self._sign_and_submit_transaction(
@@ -80,9 +80,7 @@ class RebalancerContract:
         return nonce
     
     async def complete_rebalance(self) -> int:        
-        args = {
-           
-        }
+        args = {}
 
         result = await self._sign_and_submit_transaction(
             method="complete_rebalance",

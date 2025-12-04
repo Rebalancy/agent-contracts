@@ -14,6 +14,10 @@ impl Contract {
         self.source_chain.clone()
     }
 
+    pub fn get_supported_chains(&self) -> Vec<ChainId> {
+        self.supported_chains.clone()
+    }
+
     pub fn get_all_configs(&self) -> Vec<(ChainId, Config)> {
         self.supported_chains
             .iter()
@@ -21,16 +25,6 @@ impl Contract {
                 self.config
                     .get(chain_id)
                     .map(|cfg| (chain_id.clone(), cfg.clone()))
-            })
-            .collect()
-    }
-
-    pub fn get_allocations(&self) -> Vec<(ChainId, u128)> {
-        self.supported_chains
-            .iter()
-            .map(|chain_id| {
-                let allocation = self.allocations.get(chain_id).cloned().unwrap_or(0);
-                (chain_id.clone(), allocation)
             })
             .collect()
     }

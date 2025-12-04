@@ -29,6 +29,7 @@ class EngineContext:
     source_network: Network
     remote_configs: dict
     vault_address: str
+    supported_chains: list[int]
 
 
 async def build_context(config: Config) -> EngineContext:
@@ -100,6 +101,12 @@ async def build_context(config: Config) -> EngineContext:
     remote_configs = await rebalancer_contract.get_all_configs()
 
     # ---------------------------
+    # Pull supported chains
+    # ---------------------------
+    supported_chains = await rebalancer_contract.get_supported_chains()
+    print("Supported chains:", supported_chains)
+    
+    # ---------------------------
     # Pull source chain ID
     # ---------------------------
     source_chain_id = await rebalancer_contract.get_source_chain()
@@ -134,4 +141,5 @@ async def build_context(config: Config) -> EngineContext:
         source_chain_id=source_chain_id,
         source_network=source_network,
         vault_address=vault_address,
+        supported_chains=supported_chains,
     )
