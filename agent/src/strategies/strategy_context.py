@@ -58,3 +58,5 @@ class StrategyContext:
 
         self.a_token_address_on_destination_chain: Optional[str] = None
         self.a_token_balance_before_supply: Optional[int] = None
+
+        self.usdc_agent_balance_before_deposit_to_rebalancer: Optional[int] = None
