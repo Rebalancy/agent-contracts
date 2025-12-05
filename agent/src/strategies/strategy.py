@@ -20,11 +20,12 @@ class Strategy:
         self.remote_config = remote_config
         self.agent_address = agent_address
 
-    async def execute(self, *, from_chain_id: int, to_chain_id: int, amount: int, restart_from: str | None = None):
+    async def execute(self, *, from_chain_id: int, to_chain_id: int, amount: int, flow: Flow, restart_from: str | None = None):
         ctx = self._make_context(
             from_chain_id=from_chain_id,
             to_chain_id=to_chain_id,
-            amount=amount
+            amount=amount,
+            flow=flow
         )
         await self._run_phases(ctx, restart_from)
 
