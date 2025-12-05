@@ -13,8 +13,8 @@ from .steps.p4_cctp_mint_after_assertion import CttpMintAfterAssertion
 from .steps.p6_complete_rebalance import CompleteRebalance
 from .steps.p8_approve_vault_to_spend_agent_usdc import ApproveVaulToSpendAgentUSDC
 from .steps.p9_get_usdc_balance_before_deposit_to_rebalancer import GetUSDCBalanceBeforeDepositToRebalancer 
-from .steps.p10_deposit_to_rebalancer import DepositToRebalancer
-from .steps.p10_deposit_to_rebalancer_after_assertion import DepositToRebalancerAfterAssertion
+from .steps.p7_deposit_into_rebalancer import DepositIntoRebalancer
+from .steps.p7_deposit_into_rebalancer_after_assertion import DepositIntoRebalancerAfterAssertion
 
 class AaveToRebalancer(Strategy):
     NAME = "Aave→Rebalancer"
@@ -32,8 +32,8 @@ class AaveToRebalancer(Strategy):
         CttpMintAfterAssertion,
         ApproveVaulToSpendAgentUSDC,  
         GetUSDCBalanceBeforeDepositToRebalancer,
-        DepositToRebalancer,
-        DepositToRebalancerAfterAssertion,
+        DepositIntoRebalancer,
+        DepositIntoRebalancerAfterAssertion,
         CompleteRebalance
     ]
 

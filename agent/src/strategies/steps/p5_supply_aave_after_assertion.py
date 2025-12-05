@@ -1,6 +1,5 @@
 import time
 from helpers import Assert
-from adapters.lending_pool_contract import LendingPool
 from ..strategy_context import StrategyContext
 from .step import Step
 
