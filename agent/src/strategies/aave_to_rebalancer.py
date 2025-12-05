@@ -10,6 +10,11 @@ from .steps.p2_cctp_burn_after_assertion import CctpBurnAfterAssertion
 from .steps.p3_wait_attestation import WaitAttestation
 from .steps.p4_cctp_mint import CttpMint
 from .steps.p4_cctp_mint_after_assertion import CttpMintAfterAssertion
+from .steps.p6_complete_rebalance import CompleteRebalance
+from .steps.p8_approve_vault_to_spend_agent_usdc import ApproveVaulToSpendAgentUSDC
+from .steps.p9_get_usdc_balance_before_deposit_to_rebalancer import GetUSDCBalanceBeforeDepositToRebalancer 
+from .steps.p10_deposit_to_rebalancer import DepositToRebalancer
+from .steps.p10_deposit_to_rebalancer_after_assertion import DepositToRebalancerAfterAssertion
 
 class AaveToRebalancer(Strategy):
     NAME = "Aave→Rebalancer"
@@ -25,22 +30,10 @@ class AaveToRebalancer(Strategy):
         WaitAttestation,
         CttpMint,
         CttpMintAfterAssertion,
-        # ApproveAaveUSDCBeforeSupply, TODO: Reemplazar por global approval
-        # GetATokenBalanceBeforeSupply, # TODO: Esto deberia ser get usdc token balance before deposit to rebalancer
-        # SupplyAave, # TODO: Reemplazar por deposit to rebalancer
-        # SupplyAaveAfterAssertion # TODO: Reemplazar por deposit to rebalancer after assertion
+        ApproveVaulToSpendAgentUSDC,  
+        GetUSDCBalanceBeforeDepositToRebalancer,
+        DepositToRebalancer,
+        DepositToRebalancerAfterAssertion,
+        CompleteRebalance
     ]
 
-#         # TODO: Step 1: Withdraw from Aave on source chain           
-#         withdraw_payload = await self.rebalancer_contract.build_aave_withdraw_tx(from_chain_id=from_chain_id, amount=amount)
-
-#         # TODO: Step 5: Deposit into Rebalancer on destination chain
-#         deposit_payload = await self.rebalancer_contract.build_rebalancer_deposit_tx(to_chain_id=to_chain_id, amount=amount)
-#         try:
-#             broadcast(web3_instance_destination_chain, deposit_payload)
-#         except Exception as e:
-#             print(f"Error broadcasting deposit transaction: {e}")
-#             return
-#         print("Deposit transaction broadcasted successfully!")
-
-#         print("✅ Done Aave→Rebalancer\n")
