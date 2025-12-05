@@ -19,5 +19,6 @@ async def execute_all_rebalance_operations(
         to_chain_id = op["to"]
 
         flow = infer_flow(from_chain_id=from_chain_id, to_chain_id=to_chain_id, source_chain_id=source_chain_id)
+        print(f"Executing {flow} from {from_chain_id} to {to_chain_id} amount {op['amount']}")
         await StrategyManager.get_strategy(flow).execute(from_chain_id=from_chain_id, to_chain_id=to_chain_id, amount=op["amount"], flow=flow)
 
