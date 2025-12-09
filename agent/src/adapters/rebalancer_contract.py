@@ -186,6 +186,8 @@ class RebalancerContract:
             gas=self.config.tx_tgas * TGAS,
             deposit=0
         )
+        
+        print(f"Received result from build_and_sign_cctp_approve_before_burn_tx call {result}")
 
         success_value_b64 = result.status.get("SuccessValue")
         if not success_value_b64:
@@ -298,7 +300,8 @@ class RebalancerContract:
             gas=self.config.tx_tgas * TGAS,
             deposit=0
         )
-
+        print(f"Received result from build_and_sign_cctp_mint_tx call {result}")
+        
         success_value_b64 = result.status.get("SuccessValue")
         if not success_value_b64:
             raise Exception("build_and_sign_cctp_mint_tx didn't return SuccessValue")
@@ -540,12 +543,15 @@ class RebalancerContract:
             gas=self.config.tx_tgas * TGAS,
             deposit=0
         )
+        
+        print(f"Received result from build_and_sign_return_funds_tx call {result}")
 
         success_value_b64 = result.status.get("SuccessValue")
         if not success_value_b64:
             raise Exception("return_funds didn't return SuccessValue")
 
-        signed_rlp = extract_signed_rlp_without_prefix(success_value_b64)
+
+        signed_rlp = extract_signed_rlp(success_value_b64)
                 
         return signed_rlp
 
