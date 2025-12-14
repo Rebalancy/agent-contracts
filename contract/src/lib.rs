@@ -1,24 +1,14 @@
-use std::str::FromStr;
-
 use crate::{
     constants::{KEY_VERSION, PATH},
     external::this_contract,
-    types::{
-        AaveApproveBeforeSupplyArgs, AaveArgs, ActiveSession, ActivityLog, AgentActionType,
-        CCTPBeforeBurnArgs, CCTPBurnArgs, CCTPMintArgs, CacheKey, ChainConfig, ChainId, Config,
-        Flow, PayloadType, RebalancerArgs, SnapshotDigestArgs, Step, Worker,
-    },
+    types::{ActiveSession, ActivityLog, CacheKey, ChainConfig, ChainId, Config, Step, Worker},
 };
-use alloy_primitives::Address;
 use near_sdk::{
-    env, near, require,
+    env, near,
     store::{IterableMap, IterableSet, LookupMap},
-    AccountId, Gas, PanicOnDefault, Promise, PromiseError,
+    AccountId, Gas, PanicOnDefault, Promise,
 };
-use omni_transaction::{
-    evm::{types::Signature, EVMTransaction},
-    signer::types::SignatureResponse,
-};
+use omni_transaction::evm::EVMTransaction;
 
 mod access_control;
 mod admin;
@@ -28,11 +18,12 @@ mod constants;
 mod ecdsa;
 mod encoders;
 mod external;
+mod snapshot_signing;
 mod state_machine;
+mod steps;
 mod tx_builders;
-mod views;
-
 pub mod types;
+mod views;
 
 #[near(contract_state)]
 #[derive(PanicOnDefault)]
@@ -76,398 +67,7 @@ impl Contract {
         contract
     }
 
-    #[private]
-    pub fn sign_callback(
-        &mut self,
-        #[callback_result] call_result: Result<SignatureResponse, PromiseError>,
-        nonce: u64,
-        tx_type: u8,
-        ethereum_tx: EVMTransaction,
-    ) -> Vec<u8> {
-        // Ensure the callback corresponds to the active session.
-        let nonce_from_session = self.get_active_session().nonce;
-        require!(nonce == nonce_from_session, "Nonce mismatch in callback");
-
-        let step =
-            PayloadType::try_from(tx_type).unwrap_or_else(|_| env::panic_str("Unknown tx_type"));
-
-        // Defense-in-depth: ensure correct order.
-        self.assert_step_is_next(step);
-
-        match call_result {
-            Ok(signature_response) => {
-                // decode signature and build signed RLP
-                let affine_point_bytes =
-                    hex::decode(signature_response.big_r.affine_point.clone()).expect("bad affine");
-                require!(affine_point_bytes.len() >= 33, "affine too short");
-
-                let r_bytes = affine_point_bytes[1..33].to_vec();
-                let s_bytes = hex::decode(signature_response.s.scalar.clone()).expect("bad s");
-                require!(s_bytes.len() == 32, "s len != 32");
-                let v = signature_response.recovery_id as u64;
-                let signature_omni = Signature {
-                    v,
-                    r: r_bytes,
-                    s: s_bytes,
-                };
-                let signed_rlp = ethereum_tx.build_with_signature(&signature_omni);
-
-                // payload: tx_type || signed_rlp
-                let mut payload = vec![tx_type];
-                payload.extend(signed_rlp.clone());
-
-                // logs: update ActivityLog with the new signed transaction
-                let mut log = self.logs.get(&nonce).expect("Log not found").clone();
-                log.transactions.retain(|t| t[0] != tx_type);
-                log.transactions.push(payload.clone());
-                self.logs.insert(nonce, log);
-
-                // caches: hash build_for_signing + signed payload
-                let ph = self.hash_payload(&ethereum_tx); // [u8;32]
-                let cache_key = CacheKey { nonce, tx_type };
-
-                self.payload_hashes_by_nonce_and_type
-                    .insert(cache_key.clone(), ph);
-
-                self.signatures_by_nonce_and_type
-                    .insert(cache_key, payload.clone());
-
-                payload
-            }
-            Err(e) => {
-                env::log_str(&format!("Callback failed: {:?}", e));
-                vec![]
-            }
-        }
-    }
-
-    #[private]
-    pub fn sign_crosschain_balance_callback(
-        &mut self,
-        #[callback_result] call_result: Result<SignatureResponse, PromiseError>,
-    ) -> Vec<u8> {
-        match call_result {
-            Ok(signature_response) => {
-                // decode signature and build it into [u8;65]
-                let affine_point_bytes =
-                    hex::decode(signature_response.big_r.affine_point.clone()).expect("bad affine");
-                require!(affine_point_bytes.len() >= 33, "affine too short");
-
-                let r_bytes = affine_point_bytes[1..33].to_vec();
-                let s_bytes = hex::decode(signature_response.s.scalar.clone()).expect("bad s");
-                require!(s_bytes.len() == 32, "s len != 32");
-                let v = signature_response.recovery_id as u8;
-
-                let mut signature_bytes = Vec::with_capacity(65);
-                signature_bytes.extend_from_slice(&r_bytes);
-                signature_bytes.extend_from_slice(&s_bytes);
-                signature_bytes.push(v);
-
-                env::log_str(&format!("✅ MPC signature ready: v={}, r,s ok", v));
-
-                signature_bytes
-            }
-            Err(e) => {
-                env::log_str(&format!("Callback failed: {:?}", e));
-                vec![]
-            }
-        }
-    }
-
-    #[private]
-    pub fn sign_generic_callback(
-        &mut self,
-        #[callback_result] call_result: Result<SignatureResponse, PromiseError>,
-        ethereum_tx: EVMTransaction,
-    ) -> Vec<u8> {
-        match call_result {
-            Ok(signature_response) => {
-                // decode signature and build signed RLP
-                let affine_point_bytes =
-                    hex::decode(signature_response.big_r.affine_point.clone()).expect("bad affine");
-                require!(affine_point_bytes.len() >= 33, "affine too short");
-
-                let r_bytes = affine_point_bytes[1..33].to_vec();
-                let s_bytes = hex::decode(signature_response.s.scalar.clone()).expect("bad s");
-                require!(s_bytes.len() == 32, "s len != 32");
-                let v = signature_response.recovery_id as u64;
-                let signature_omni = Signature {
-                    v,
-                    r: r_bytes,
-                    s: s_bytes,
-                };
-                let signed_rlp = ethereum_tx.build_with_signature(&signature_omni);
-
-                signed_rlp // TODO: Cache signature hashes
-            }
-            Err(e) => {
-                env::log_str(&format!("Callback failed: {:?}", e));
-                vec![]
-            }
-        }
-    }
-}
-
-#[near]
-impl Contract {
-    pub fn start_rebalance(
-        &mut self,
-        flow: Flow,
-        source_chain: ChainId,
-        destination_chain: ChainId,
-        amount: u128,
-    ) -> u64 {
-        self.assert_no_active_session();
-        self.assert_agent_is_calling();
-        self.is_chain_supported(&source_chain);
-        self.is_chain_supported(&destination_chain);
-
-        let nonce = self.logs_nonce;
-        self.logs_nonce += 1;
-
-        self.logs.insert(
-            nonce,
-            ActivityLog {
-                activity_type: AgentActionType::Rebalance,
-                source_chain: source_chain,
-                destination_chain,
-                transactions: vec![],
-                timestamp: env::block_timestamp_ms(),
-                nonce,
-                amount,
-            },
-        );
-
-        self.active_session = Some(ActiveSession {
-            nonce,
-            flow,
-            started_at: env::block_timestamp_ms(),
-        });
-
-        nonce
-    }
-
-    pub fn build_and_sign_withdraw_for_crosschain_allocation_tx(
-        &mut self,
-        rebalancer_args: RebalancerArgs,
-        callback_gas_tgas: u64,
-    ) -> Promise {
-        self.assert_agent_is_calling();
-        let cfg =
-            self.get_chain_config_from_step_and_current_session(Step::RebalancerWithdrawToAllocate);
-
-        let mut tx = rebalancer_args.clone().partial_transaction;
-        tx.input = tx_builders::build_withdraw_for_crosschain_allocation_tx(rebalancer_args);
-        tx.to = Some(
-            Address::from_str(&cfg.rebalancer.vault_address)
-                .expect("Invalid vault")
-                .into_array(),
-        );
-
-        self.trigger_signature(Step::RebalancerWithdrawToAllocate, tx, callback_gas_tgas)
-    }
-
-    pub fn build_and_sign_cctp_approve_before_burn_tx(
-        &mut self,
-        args: CCTPBeforeBurnArgs,
-        callback_gas_tgas: u64,
-    ) -> Promise {
-        self.assert_agent_is_calling();
-        let cfg = self.get_chain_config_from_step_and_current_session(Step::CCTPApproveBeforeBurn);
-
-        let mut tx = args.clone().partial_transaction;
-        tx.input = tx_builders::build_cctp_approve_before_burn_tx(args);
-        tx.to = Some(
-            Address::from_str(&cfg.cctp.usdc_address)
-                .expect("Invalid USDC address")
-                .into_array(),
-        );
-
-        self.trigger_signature(Step::CCTPApproveBeforeBurn, tx, callback_gas_tgas)
-    }
-
-    pub fn build_and_sign_cctp_burn_tx(
-        &mut self,
-        args: CCTPBurnArgs,
-        callback_gas_tgas: u64,
-    ) -> Promise {
-        self.assert_agent_is_calling();
-        let cfg = self.get_chain_config_from_step_and_current_session(Step::CCTPBurn);
-
-        let mut tx = args.clone().partial_burn_transaction;
-        tx.input = tx_builders::build_cctp_burn_tx(args);
-        tx.to = Some(
-            Address::from_str(&cfg.cctp.messenger_address)
-                .expect("Invalid messenger")
-                .into_array(),
-        );
-
-        self.trigger_signature(Step::CCTPBurn, tx, callback_gas_tgas)
-    }
-
-    pub fn build_and_sign_cctp_mint_tx(
-        &mut self,
-        args: CCTPMintArgs,
-        callback_gas_tgas: u64,
-    ) -> Promise {
-        self.assert_agent_is_calling();
-        let cfg = self.get_chain_config_from_step_and_current_session(Step::CCTPMint);
-
-        let mut tx = args.clone().partial_mint_transaction;
-        tx.input = tx_builders::build_cctp_mint_tx(args);
-        tx.to = Some(
-            Address::from_str(&cfg.cctp.transmitter_address)
-                .expect("Invalid transmitter")
-                .into_array(),
-        );
-
-        self.trigger_signature(Step::CCTPMint, tx, callback_gas_tgas)
-    }
-
-    pub fn build_and_sign_aave_approve_before_supply_tx(
-        &mut self,
-        args: AaveApproveBeforeSupplyArgs,
-        callback_gas_tgas: u64,
-    ) -> Promise {
-        self.assert_agent_is_calling();
-        let cfg =
-            self.get_chain_config_from_step_and_current_session(Step::AaveApproveBeforeSupply);
-
-        let mut tx = args.clone().partial_transaction;
-        tx.input = tx_builders::build_aave_approve_before_supply_tx(args);
-        tx.to = Some(
-            Address::from_str(&cfg.cctp.usdc_address)
-                .expect("Invalid USDC address")
-                .into_array(),
-        );
-
-        self.trigger_signature(Step::AaveApproveBeforeSupply, tx, callback_gas_tgas)
-    }
-
-    pub fn build_and_sign_aave_supply_tx(
-        &mut self,
-        args: AaveArgs,
-        callback_gas_tgas: u64,
-    ) -> Promise {
-        self.assert_agent_is_calling();
-        self.assert_step_is_next(Step::AaveSupply);
-
-        let cfg = self.get_chain_config_from_step_and_current_session(Step::AaveSupply);
-
-        let mut tx = args.clone().partial_transaction;
-        tx.input = tx_builders::build_aave_supply_tx(args, cfg.aave.clone());
-        tx.to = Some(
-            Address::from_str(&cfg.aave.lending_pool_address)
-                .expect("Invalid lending pool")
-                .into_array(),
-        );
-
-        self.trigger_signature(Step::AaveSupply, tx, callback_gas_tgas)
-    }
-
-    pub fn build_and_sign_aave_withdraw_tx(
-        &mut self,
-        args: AaveArgs,
-        callback_gas_tgas: u64,
-    ) -> Promise {
-        self.assert_agent_is_calling();
-        let cfg = self.get_chain_config_from_step_and_current_session(Step::AaveWithdraw);
-
-        let mut tx = args.clone().partial_transaction;
-        tx.input = tx_builders::build_aave_withdraw_tx(args, cfg.aave.clone());
-        tx.to = Some(
-            Address::from_str(&cfg.aave.lending_pool_address)
-                .expect("Invalid lending pool")
-                .into_array(),
-        );
-
-        self.trigger_signature(Step::AaveWithdraw, tx, callback_gas_tgas)
-    }
-
-    pub fn build_and_sign_return_funds_tx(
-        &mut self,
-        args: RebalancerArgs,
-        callback_gas_tgas: u64,
-    ) -> Promise {
-        self.assert_agent_is_calling();
-        let cfg = self.get_chain_config_from_step_and_current_session(Step::RebalancerDeposit);
-
-        let mut tx = args.clone().partial_transaction;
-        tx.input = tx_builders::build_return_funds_tx(args);
-        tx.to = Some(
-            Address::from_str(&cfg.rebalancer.vault_address)
-                .expect("Invalid vault")
-                .into_array(),
-        );
-
-        self.trigger_signature(Step::RebalancerDeposit, tx, callback_gas_tgas)
-    }
-
-    pub fn build_and_sign_crosschain_balance_snapshot_tx(
-        &self,
-        args: SnapshotDigestArgs,
-        callback_gas_tgas: u64,
-    ) -> Promise {
-        self.assert_agent_is_calling();
-
-        let digest = encoders::rebalancer::vault::compute_snapshot_digest(
-            args.chain_id,
-            args.verifying_contract.clone(),
-            args.balance,
-            args.nonce,
-            args.deadline,
-            args.assets,
-            args.receiver,
-        );
-
-        let payload_hash = digest.try_into().expect("Payload must be 32 bytes long");
-
-        ecdsa::get_sig(payload_hash, PATH.to_string(), KEY_VERSION).then(
-            this_contract::ext(env::current_account_id())
-                .with_static_gas(Gas::from_tgas(callback_gas_tgas))
-                .sign_crosschain_balance_callback(),
-        )
-    }
-
-    pub fn complete_rebalance(&mut self) -> u64 {
-        self.assert_agent_is_calling();
-
-        let session = self.get_active_session();
-        let nonce = session.nonce;
-
-        require!(
-            self.active_session.is_some(),
-            "No active session to complete"
-        );
-
-        self.active_session = None;
-
-        nonce
-    }
-
-    /*
-    GLOBAL ALLOWANCE METHODS
-    */
-    pub fn build_and_sign_approve_vault_to_manage_agents_usdc_tx(
-        &mut self,
-        partial_transaction: EVMTransaction,
-        callback_gas_tgas: u64,
-    ) -> Promise {
-        self.assert_agent_is_calling();
-        let config = self.get_chain_config(&self.source_chain);
-        let mut tx = partial_transaction;
-        tx.input = tx_builders::build_approve_vault_to_manage_agents_usdc_tx(
-            config.rebalancer.vault_address.clone(),
-        );
-        tx.to = Some(
-            Address::from_str(&config.cctp.usdc_address)
-                .expect("Invalid USDC address")
-                .into_array(),
-        );
-
-        self.trigger_signature_without_step_verification(tx, callback_gas_tgas)
-    }
-
+    // TODO: Integrate this
     pub(crate) fn trigger_signature(
         &mut self,
         step: Step,
@@ -492,82 +92,222 @@ impl Contract {
                 .sign_callback(nonce, step as u8, tx),
         )
     }
-
-    pub(crate) fn trigger_signature_without_step_verification(
-        &mut self,
-        tx: EVMTransaction,
-        callback_gas_tgas: u64,
-    ) -> Promise {
-        let payload_hash = self.hash_payload(&tx);
-
-        ecdsa::get_sig(payload_hash, PATH.to_string(), KEY_VERSION).then(
-            this_contract::ext(env::current_account_id())
-                .with_static_gas(Gas::from_tgas(callback_gas_tgas))
-                .sign_generic_callback(tx),
-        )
-    }
 }
 
 #[cfg(test)]
-mod tests {
-    use crate::types::{AaveConfig, CCTPConfig, RebalancerConfig};
+mod test_helpers {
+    use super::types::*;
+    use super::Contract;
     use near_sdk::NearToken;
+    use near_sdk::{test_utils::VMContextBuilder, testing_env};
+    use omni_transaction::signer::types::{
+        SerializableAffinePoint, SerializableScalar, SignatureResponse,
+    };
     use std::str::FromStr;
 
-    use super::*;
-    use near_sdk::{test_utils::VMContextBuilder, testing_env, AccountId};
+    pub const ONE_NEAR: NearToken = NearToken::from_near(1);
+    pub const OWNER: &str = "owner.testnet";
+    pub const _WORKER: &str = "worker.testnet";
 
-    const ONE_NEAR: NearToken = NearToken::from_near(1);
-    const OWNER: &str = "owner.testnet";
-    const _WORKER: &str = "worker.testnet";
-
-    fn set_context(predecessor: &str, amount: NearToken) {
+    pub fn set_context(predecessor: &str, amount: NearToken) {
         let mut builder = VMContextBuilder::new();
         builder.predecessor_account_id(predecessor.parse().unwrap());
         builder.attached_deposit(amount);
 
         testing_env!(builder.build());
     }
+    pub const DEFAULT_SOURCE_CHAIN_STR: &str = "1";
+    pub const DEFAULT_DESTINATION_CHAIN_STR: &str = "2";
+    pub const DEFAULT_SOURCE_CHAIN: ChainId = 1;
+    pub const DEFAULT_DESTINATION_CHAIN: ChainId = 2;
+
+    fn init_contract_with(source_chain: ChainId, configs: Vec<ChainConfig>) -> Contract {
+        Contract::init(source_chain, configs)
+    }
+
+    pub fn init_contract_with_defaults() -> Contract {
+        let source_chain = DEFAULT_SOURCE_CHAIN;
+        let configs = build_fake_configs();
+
+        init_contract_with(source_chain, configs)
+    }
+
+    // Utilities
+
+    impl Contract {
+        fn assert_state_is(&self, expected: &Contract) {
+            assert!(self.owner_id == expected.owner_id);
+            assert!(self.source_chain == expected.source_chain);
+            assert!(self.approved_codehashes.len() == expected.approved_codehashes.len());
+            assert!(self.worker_by_account_id.len() == expected.worker_by_account_id.len());
+            assert!(self.logs.len() == expected.logs.len());
+        }
+    }
+    // fn assert_state_is(contract: &Contract, expected: &Contract) {
+    //     assert!(contract.owner_id == expected.owner_id);
+    //     assert!(contract.source_chain == expected.source_chain);
+    //     assert!(contract.approved_codehashes.len() == expected.approved_codehashes.len());
+    //     assert!(contract.worker_by_account_id.len() == expected.worker_by_account_id.len());
+    //     assert!(contract.logs.len() == expected.logs.len());
+    // }
+
+    fn build_fake_configs() -> Vec<ChainConfig> {
+        vec![
+            ChainConfig {
+                chain_id: DEFAULT_SOURCE_CHAIN,
+                config: Config {
+                    rebalancer: RebalancerConfig {
+                        vault_address: "0xE168d95f8d1B8EC167A63c8E696076EC8EE95337".to_string(),
+                    },
+                    cctp: CCTPConfig {
+                        messenger_address: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA".to_string(),
+                        transmitter_address: "0xe737e5cebeeba77efe34d4aa090756590b1ce275"
+                            .to_string(),
+                        usdc_address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d".to_string(),
+                    },
+                    aave: AaveConfig {
+                        asset: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d".to_string(),
+                        lending_pool_address: "0xBfC91D59fdAA134A4ED45f7B584cAf96D7792Eff"
+                            .to_string(),
+                        on_behalf_of: "0x20f2747bbc52453ac0774b5b2fe0e28dc6637f30".to_string(),
+                        referral_code: 0,
+                    },
+                },
+            },
+            ChainConfig {
+                chain_id: DEFAULT_DESTINATION_CHAIN,
+                config: Config {
+                    rebalancer: RebalancerConfig {
+                        vault_address: "".into(),
+                    },
+                    cctp: CCTPConfig {
+                        messenger_address: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA".into(),
+                        transmitter_address: "0xe737e5cebeeba77efe34d4aa090756590b1ce275".into(),
+                        usdc_address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d".into(),
+                    },
+                    aave: AaveConfig {
+                        asset: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d".into(),
+                        lending_pool_address: "0xBfC91D59fdAA134A4ED45f7B584cAf96D7792Eff".into(),
+                        on_behalf_of: "0x20f2747bbc52453ac0774b5b2fe0e28dc6637f30".into(),
+                        referral_code: 0,
+                    },
+                },
+            },
+        ]
+    }
+
+    fn build_mock_signature() -> SignatureResponse {
+        SignatureResponse {
+            big_r: SerializableAffinePoint {
+                affine_point: hex::encode(vec![0u8; 33]),
+            },
+            s: SerializableScalar {
+                scalar: hex::encode(vec![1u8; 32]),
+            },
+            recovery_id: 1,
+        }
+    }
+
+    impl ChainConfig {
+        pub fn with_chain_id(mut self, id: &str) -> Self {
+            self.chain_id = ChainId::from_str(id).unwrap();
+            self
+        }
+
+        pub fn with_config(mut self, config: Config) -> Self {
+            self.config = config;
+            self
+        }
+    }
+
+    impl Config {
+        pub fn with_aave_config(mut self, aave: AaveConfig) -> Self {
+            self.aave = aave;
+            self
+        }
+
+        pub fn with_cctp_config(mut self, cctp: CCTPConfig) -> Self {
+            self.cctp = cctp;
+            self
+        }
+
+        pub fn with_rebalancer_config(mut self, rebalancer: RebalancerConfig) -> Self {
+            self.rebalancer = rebalancer;
+            self
+        }
+    }
+
+    impl AaveConfig {
+        pub fn with_asset(mut self, asset: &str) -> Self {
+            self.asset = asset.to_string();
+            self
+        }
+
+        pub fn with_lending_pool_address(mut self, address: &str) -> Self {
+            self.lending_pool_address = address.to_string();
+            self
+        }
+
+        pub fn with_on_behalf_of(mut self, on_behalf_of: &str) -> Self {
+            self.on_behalf_of = on_behalf_of.to_string();
+            self
+        }
+
+        pub fn with_referral_code(mut self, code: u16) -> Self {
+            self.referral_code = code;
+            self
+        }
+    }
+
+    impl RebalancerConfig {
+        pub fn with_vault_address(mut self, address: &str) -> Self {
+            self.vault_address = address.to_string();
+            self
+        }
+    }
+
+    impl CCTPConfig {
+        pub fn with_messenger_address(mut self, address: &str) -> Self {
+            self.messenger_address = address.to_string();
+            self
+        }
+
+        pub fn with_transmitter_address(mut self, address: &str) -> Self {
+            self.transmitter_address = address.to_string();
+            self
+        }
+
+        pub fn with_usdc_address(mut self, address: &str) -> Self {
+            self.usdc_address = address.to_string();
+            self
+        }
+    }
+}
+
+#[cfg(test)]
+mod maintests {
+    use crate::test_helpers::*;
+    use near_sdk::AccountId;
+
+    use std::str::FromStr;
 
     #[test]
     fn test_init() {
         set_context(OWNER, ONE_NEAR);
-        let source_chain = ChainId::from_str("1").unwrap();
-        let configs = vec![ChainConfig {
-            chain_id: ChainId::from_str("2").unwrap(),
-            config: Config {
-                rebalancer: RebalancerConfig {
-                    vault_address: "0xVaultAddress".to_string(),
-                },
-                cctp: CCTPConfig {
-                    messenger_address: "0xMessengerAddress".to_string(),
-                    transmitter_address: "0xTransmitterAddress".to_string(),
-                    usdc_address: "0xUSDCAddress".to_string(),
-                },
-                aave: AaveConfig {
-                    asset: "0xAaveAssetAddress".to_string(),
-                    lending_pool_address: "0xLendingPoolAddress".to_string(),
-                    on_behalf_of: "0xOnBehalfOfAddress".to_string(),
-                    referral_code: 0,
-                },
-            },
-        }];
 
-        let contract = Contract::init(source_chain, configs);
+        let contract = init_contract_with_defaults();
 
         assert_eq!(contract.owner_id, AccountId::from_str(OWNER).unwrap());
-        assert_eq!(contract.source_chain, source_chain);
-        assert_eq!(contract.supported_chains.len(), 1);
-        assert_eq!(
-            contract.supported_chains[0],
-            ChainId::from_str("2").unwrap()
-        );
-        assert!(contract.active_session.is_none());
-        assert!(contract.approved_codehashes.is_empty());
-        assert!(contract.worker_by_account_id.is_empty());
-        assert!(contract
-            .config
-            .contains_key(&ChainId::from_str("2").unwrap()));
+        assert_eq!(contract.source_chain, DEFAULT_SOURCE_CHAIN);
+        assert!(contract.approved_codehashes.is_empty()); // @dev since the agent registers itself later on
+        assert!(contract.worker_by_account_id.is_empty()); // @dev since the agent registers itself later on
         assert!(contract.logs.is_empty());
+        assert_eq!(contract.logs_nonce, 0);
+        assert_eq!(contract.supported_chains.len(), 2);
+        assert_eq!(contract.supported_chains[0], DEFAULT_SOURCE_CHAIN);
+        assert_eq!(contract.supported_chains[1], DEFAULT_DESTINATION_CHAIN);
+        assert!(contract.active_session.is_none());
+        assert!(contract.config.contains_key(&DEFAULT_SOURCE_CHAIN));
+        assert!(contract.config.contains_key(&DEFAULT_DESTINATION_CHAIN));
     }
 }
