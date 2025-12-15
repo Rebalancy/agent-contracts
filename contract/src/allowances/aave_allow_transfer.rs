@@ -1,11 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
-    constants::*,
-    ecdsa,
-    external::this_contract,
-    tx_builders,
-    types::{ApproveAaveSupplyArgs, Step},
+    constants::*, ecdsa, external::this_contract, tx_builders, types::ApproveAaveSupplyArgs,
     Contract, ContractExt,
 };
 use alloy_primitives::Address;
@@ -19,8 +15,8 @@ impl Contract {
         callback_gas_tgas: u64,
     ) -> Promise {
         self.assert_agent_is_calling();
-        let cfg =
-            self.get_chain_config_from_step_and_current_session(Step::AaveApproveBeforeSupply);
+        assert!(args.chain_id != self.source_chain); // @dev since Aave interaction in the source chain is via the Vault contract
+        let cfg = self.get_chain_config(&args.chain_id);
 
         let mut tx = args.clone().partial_transaction;
         tx.input = tx_builders::build_aave_approve_supply_tx(args);

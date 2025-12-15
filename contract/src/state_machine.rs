@@ -20,25 +20,20 @@ impl Contract {
         match (flow, step) {
             // -------- Aave -> Aave --------
             (Flow::AaveToAave, PayloadType::AaveWithdraw)
-            | (Flow::AaveToAave, PayloadType::CCTPApproveBeforeBurn)
             | (Flow::AaveToAave, PayloadType::CCTPBurn) => log.source_chain,
 
             (Flow::AaveToAave, PayloadType::CCTPMint)
-            | (Flow::AaveToAave, PayloadType::AaveApproveBeforeSupply)
             | (Flow::AaveToAave, PayloadType::AaveSupply) => log.destination_chain,
 
             // -------- Rebalancer -> Aave --------
             (Flow::RebalancerToAave, PayloadType::RebalancerWithdrawToAllocate)
-            | (Flow::RebalancerToAave, PayloadType::CCTPApproveBeforeBurn)
             | (Flow::RebalancerToAave, PayloadType::CCTPBurn) => log.source_chain,
 
             (Flow::RebalancerToAave, PayloadType::CCTPMint)
-            | (Flow::RebalancerToAave, PayloadType::AaveApproveBeforeSupply)
             | (Flow::RebalancerToAave, PayloadType::AaveSupply) => log.destination_chain,
 
             // -------- Aave -> Rebalancer --------
             (Flow::AaveToRebalancer, PayloadType::AaveWithdraw)
-            | (Flow::AaveToRebalancer, PayloadType::CCTPApproveBeforeBurn)
             | (Flow::AaveToRebalancer, PayloadType::CCTPBurn) => log.source_chain,
 
             (Flow::AaveToRebalancer, PayloadType::CCTPMint)
@@ -86,23 +81,18 @@ impl Flow {
         match self {
             Flow::AaveToAave => &[
                 PayloadType::AaveWithdraw,
-                PayloadType::CCTPApproveBeforeBurn,
                 PayloadType::CCTPBurn,
                 PayloadType::CCTPMint,
-                PayloadType::AaveApproveBeforeSupply,
                 PayloadType::AaveSupply,
             ],
             Flow::RebalancerToAave => &[
                 PayloadType::RebalancerWithdrawToAllocate,
-                PayloadType::CCTPApproveBeforeBurn,
                 PayloadType::CCTPBurn,
                 PayloadType::CCTPMint,
-                PayloadType::AaveApproveBeforeSupply,
                 PayloadType::AaveSupply,
             ],
             Flow::AaveToRebalancer => &[
                 PayloadType::AaveWithdraw,
-                PayloadType::CCTPApproveBeforeBurn,
                 PayloadType::CCTPBurn,
                 PayloadType::CCTPMint,
                 PayloadType::RebalancerDeposit,
@@ -110,3 +100,5 @@ impl Flow {
         }
     }
 }
+
+// TODO: Create tests for assert_step_is_next

@@ -23,6 +23,7 @@ pub struct ApproveCctpBurnArgs {
     pub spender: String,
     pub amount: u128,
     pub partial_transaction: EVMTransaction,
+    pub chain_id: u64,
 }
 
 pub type ApproveAaveSupplyArgs = ApproveCctpBurnArgs;

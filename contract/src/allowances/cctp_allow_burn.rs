@@ -1,11 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
-    constants::*,
-    ecdsa,
-    external::this_contract,
-    tx_builders,
-    types::{ApproveCctpBurnArgs, Step},
+    constants::*, ecdsa, external::this_contract, tx_builders, types::ApproveCctpBurnArgs,
     Contract, ContractExt,
 };
 use alloy_primitives::Address;
@@ -19,7 +15,7 @@ impl Contract {
         callback_gas_tgas: u64,
     ) -> Promise {
         self.assert_agent_is_calling();
-        let cfg = self.get_chain_config_from_step_and_current_session(Step::CCTPApproveBeforeBurn);
+        let cfg = self.get_chain_config(&args.chain_id);
 
         let mut tx = args.clone().partial_transaction;
         tx.input = tx_builders::build_cctp_approve_burn_tx(args);
