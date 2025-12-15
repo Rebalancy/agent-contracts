@@ -13,7 +13,9 @@ impl Contract {
         callback_gas_tgas: u64,
     ) -> Promise {
         self.assert_agent_is_calling();
+
         let config = self.get_chain_config(&self.source_chain);
+
         let mut tx = partial_transaction;
         tx.input = tx_builders::build_approve_vault_to_manage_agents_usdc_tx(
             config.rebalancer.vault_address.clone(),

@@ -15,13 +15,18 @@ impl Contract {
         callback_gas_tgas: u64,
     ) -> Promise {
         self.assert_agent_is_calling();
+
         assert!(args.chain_id != self.source_chain); // @dev since Aave interaction in the source chain is via the Vault contract
-        let cfg = self.get_chain_config(&args.chain_id);
+
+        let config = self.get_chain_config(&args.chain_id);
 
         let mut tx = args.clone().partial_transaction;
-        tx.input = tx_builders::build_aave_approve_supply_tx(args);
+        tx.input = tx_builders::build_aave_approve_supply_tx(
+            args.amount,
+            config.aave.lending_pool_address.clone(),
+        );
         tx.to = Some(
-            Address::from_str(&cfg.cctp.usdc_address)
+            Address::from_str(&config.cctp.usdc_address)
                 .expect("Invalid USDC address")
                 .into_array(),
         );

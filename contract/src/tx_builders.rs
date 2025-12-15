@@ -1,15 +1,12 @@
 use crate::encoders;
-use crate::types::{
-    AaveArgs, AaveConfig, ApproveAaveSupplyArgs, ApproveCctpBurnArgs, CCTPBurnArgs, CCTPMintArgs,
-    RebalancerArgs,
-};
+use crate::types::{AaveArgs, AaveConfig, CCTPBurnArgs, CCTPMintArgs, RebalancerArgs};
 use alloy_primitives::{Address, B256, U256};
 use std::str::FromStr;
 
-pub fn build_cctp_approve_burn_tx(args: ApproveCctpBurnArgs) -> Vec<u8> {
+pub fn build_cctp_approve_burn_tx(amount: u128, spender: String) -> Vec<u8> {
     let input = encoders::cctp::usdc::encode_approve(
-        Address::from_str(&args.spender).expect("Invalid spender address"),
-        U256::from(args.amount),
+        Address::from_str(&spender).expect("Invalid spender address"),
+        U256::from(amount),
     );
     input
 }
@@ -35,10 +32,10 @@ pub fn build_cctp_mint_tx(args: CCTPMintArgs) -> Vec<u8> {
     input
 }
 
-pub fn build_aave_approve_supply_tx(args: ApproveAaveSupplyArgs) -> Vec<u8> {
+pub fn build_aave_approve_supply_tx(amount: u128, spender: String) -> Vec<u8> {
     let input = encoders::cctp::usdc::encode_approve(
-        Address::from_str(&args.spender).expect("Invalid spender address"),
-        U256::from(args.amount),
+        Address::from_str(&spender).expect("Invalid spender address"),
+        U256::from(amount),
     );
     input
 }
