@@ -14,6 +14,7 @@ mod access_control;
 mod admin;
 mod agent;
 mod allowances;
+mod callbacks;
 mod collateral;
 mod constants;
 mod ecdsa;
