@@ -117,14 +117,24 @@ mod test_helpers {
     pub const ONE_NEAR: NearToken = NearToken::from_near(1);
     pub const OWNER: &str = "owner.testnet";
     pub const _WORKER: &str = "worker.testnet";
+    pub const DEFAULT_ATTACHED_DEPOSIT: NearToken = ONE_NEAR;
 
-    pub fn set_context(predecessor: &str, amount: NearToken) {
+    pub fn set_context(predecessor: &str) {
+        let mut builder = VMContextBuilder::new();
+        builder.predecessor_account_id(predecessor.parse().unwrap());
+        builder.attached_deposit(DEFAULT_ATTACHED_DEPOSIT);
+
+        testing_env!(builder.build());
+    }
+
+    pub fn set_context_with_attached_deposit(predecessor: &str, amount: NearToken) {
         let mut builder = VMContextBuilder::new();
         builder.predecessor_account_id(predecessor.parse().unwrap());
         builder.attached_deposit(amount);
 
         testing_env!(builder.build());
     }
+
     pub const DEFAULT_SOURCE_CHAIN_STR: &str = "1";
     pub const DEFAULT_DESTINATION_CHAIN_STR: &str = "2";
     pub const DEFAULT_SOURCE_CHAIN: ChainId = 1;
@@ -302,7 +312,7 @@ mod maintests {
 
     #[test]
     fn test_init() {
-        set_context(OWNER, ONE_NEAR);
+        set_context(OWNER);
 
         let contract = init_contract_with_defaults();
 
