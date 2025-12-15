@@ -13,6 +13,7 @@ use omni_transaction::evm::EVMTransaction;
 mod access_control;
 mod admin;
 mod agent;
+mod allowances;
 mod collateral;
 mod constants;
 mod ecdsa;
@@ -83,6 +84,13 @@ impl Contract {
         if let Some(prev) = self.payload_hashes_by_nonce_and_type.get(&key) {
             if *prev == payload_hash {
                 env::panic_str("Signature already cached for this step");
+                // TODO: Fix this to return the existing signature
+                // let hashed_signature = self
+                //     .signatures_by_nonce_and_type
+                //     .get(&key)
+                //     .expect("Signature must be present if payload hash matches");
+
+                // return PromiseOrValue::Value(hashed_signature.clone());
             }
         }
 

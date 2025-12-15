@@ -19,13 +19,13 @@ pub struct CCTPMintArgs {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub struct CCTPBeforeBurnArgs {
+pub struct ApproveCctpBurnArgs {
     pub spender: String,
     pub amount: u128,
     pub partial_transaction: EVMTransaction,
 }
 
-pub type AaveApproveBeforeSupplyArgs = CCTPBeforeBurnArgs;
+pub type ApproveAaveSupplyArgs = ApproveCctpBurnArgs;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(crate = "near_sdk::serde")]
