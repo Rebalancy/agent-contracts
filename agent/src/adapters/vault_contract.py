@@ -12,3 +12,6 @@ class Vault:
 
     def get_total_assets(self) -> int:
         return self.contract.functions.totalAssets().call()
+
+    def get_max_total_deposits(self) -> int:
+        return self.contract.functions.MAX_TOTAL_DEPOSITS().call()

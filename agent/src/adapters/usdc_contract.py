@@ -1,7 +1,7 @@
 from web3 import Web3
 from .abis import USDC_ABI
 
-# TODO: agregar usdc abi
+# TODO: add usdc abi
 class USDC:
     @staticmethod
     def get_allowance(web3_instance: Web3, usdc_address: str, spender: str) -> str:
