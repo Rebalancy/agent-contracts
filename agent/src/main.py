@@ -1,4 +1,5 @@
 import asyncio
+from dstack_sdk import DstackClient
 
 from config import Config
 from helpers import Assert, BalanceHelper
